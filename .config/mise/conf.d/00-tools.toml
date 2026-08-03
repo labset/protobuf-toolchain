@@ -1,0 +1,5 @@
+[tools]
+go = "1.26.2"
+buf = "1.67.0"
+golangci-lint = "2.12.2"
+goreleaser = "2.12.7"

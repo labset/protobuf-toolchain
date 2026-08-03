@@ -1,0 +1,17 @@
+[tasks."toolchain:tidy"]
+run = "go mod tidy"
+
+[tasks."toolchain:generate"]
+run = "go generate ./..."
+
+[tasks."toolchain:lint"]
+run = "golangci-lint run"
+
+[tasks."toolchain:lint:fix"]
+run = [
+    "golangci-lint run --fix",
+    "go fmt ./..."
+]
+
+[tasks."toolchain:build"]
+run = "goreleaser build --clean --snapshot"

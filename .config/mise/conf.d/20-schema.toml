@@ -1,0 +1,13 @@
+[tasks."schema:tidy"]
+run = "buf dep update"
+
+[tasks."schema:generate"]
+run = "buf generate --template buf.gen.api.yaml"
+
+[tasks."schema:lint"]
+run = "buf lint"
+
+[tasks."schema:lint:fix"]
+run = [
+    "buf format --write"
+]

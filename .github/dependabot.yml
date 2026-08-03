@@ -1,0 +1,24 @@
+version: 2
+updates:
+  # Go module dependencies — let new releases soak before proposing an upgrade
+  # so a freshly-published (potentially compromised) version isn't pulled in
+  # immediately.
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 5
+      semver-major-days: 7
+      semver-minor-days: 5
+      semver-patch-days: 3
+
+  # GitHub Actions used in our workflows — same soak policy.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 5

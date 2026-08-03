@@ -1,0 +1,19 @@
+[tasks.clean]
+description = "clean it"
+run = "rm -rf dist"
+
+[tasks.tidy]
+description = "tidy it"
+depends = ["schema:lint", "toolchain:lint"]
+
+[tasks.generate]
+description = "generate it"
+depends = ["schema:generate"]
+
+[tasks.lint]
+description = "lint it"
+depends = ["schema:lint", "toolchain:lint"]
+
+[tasks.build]
+description = "build it"
+depends = ["toolchain:build"]

@@ -1,0 +1,67 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+    - go fmt ./...
+    - go test ./...
+
+builds:
+  - main: cmd/protoc-gen-echo/main.go
+    id: protoc-gen-echo
+    binary: protoc-gen-echo
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+
+  - main: cmd/echo-lint-plugin/main.go
+    id: echo-lint-plugin
+    binary: echo-lint-plugin
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+
+archives:
+  - formats: [tar.gz]
+    # this name template makes the OS and Arch compatible with the results of `uname`.
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    # use zip for windows archives
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+brews:
+  - name: go-protobuf-toolchain-template
+    repository:
+      owner: labset
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: "https://github.com/labset/go-protobuf-toolchain-template"
+    description: "Protobuf toolchain with protoc-gen-echo codegen plugin and echo-lint-plugin linter"
+    license: "Apache-2.0"
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    commit_msg_template: "brew: bump {{ .ProjectName }} to {{ .Tag }}"
+    # only publish the tap for real releases, never for snapshots
+    skip_upload: auto
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
