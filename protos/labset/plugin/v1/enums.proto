@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package labset.plugin.v1;
+
+option go_package = "github.com/labset/protobuf-toolchain/api/labset/plugin/v1;pluginV1";
+
+enum Role {
+  ROLE_UNSPECIFIED = 0;
+  ROLE_ENTITY = 1;
+  ROLE_REFERENCE = 2;
+}
