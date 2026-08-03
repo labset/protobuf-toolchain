@@ -1,4 +1,4 @@
-## go-protobuf-toolchain-template
+## protobuf-toolchain
 
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=labset_go-protobuf-toolchain-template&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=labset_go-protobuf-toolchain-template)
 

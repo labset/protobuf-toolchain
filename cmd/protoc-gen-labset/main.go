@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/labset/go-protobuf-toolchain-template/internal/codegen"
+	"github.com/labset/protobuf-toolchain/internal/codegen"
 	"google.golang.org/protobuf/compiler/protogen"
 )
 
