@@ -140,15 +140,28 @@ mise run clean
 
 Releases are cut by [GoReleaser](https://goreleaser.com/) from the `release` workflow, which
 triggers when a GitHub release is created. It builds the binaries, publishes the archives to the
-release, and pushes a Homebrew formula to the tap.
+release, and pushes a Homebrew cask to the tap.
 
 **One-time setup** (required before the first release publishes the Homebrew tap):
 
 1. Create the tap repository `labset/homebrew-tap` (an empty repo is fine). GoReleaser commits the
-   generated formula into it.
+   generated cask into it.
 2. Add a `HOMEBREW_TAP_GITHUB_TOKEN` repository secret, a GitHub personal access token with
    `contents: write` permission on `labset/homebrew-tap`. The default `GITHUB_TOKEN` cannot push to
    another repository, so this separate token is required.
+
+> **Migrating from a formula to a cask:** this tap distributes a Homebrew **cask**
+> (see `homebrew_casks` in `.goreleaser.yaml`). If a `protobuf-toolchain` **formula**
+> was ever published under this tap before, add a `tap_migrations.json` at the root of
+> `labset/homebrew-tap` so existing installs move over automatically on `brew update`:
+>
+> ```json
+> {
+>   "protobuf-toolchain": "labset/tap/protobuf-toolchain"
+> }
+> ```
+>
+> This is only needed if a formula was previously shipped — a first-ever release can skip it.
 
 **Cutting a release:**
 
