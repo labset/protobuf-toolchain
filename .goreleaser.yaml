@@ -49,7 +49,7 @@ brews:
       owner: labset
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    homepage: "https://github.com/labset/go-protobuf-toolchain-template"
+    homepage: "https://github.com/labset/protobuf-toolchain"
     description: "Protobuf toolchain with protoc-gen-labset codegen plugin and labset-lint-plugin linter"
     license: "Apache-2.0"
     commit_author:
