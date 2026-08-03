@@ -2,7 +2,7 @@ package main
 
 import (
 	"buf.build/go/bufplugin/check"
-	"github.com/labset/go-protobuf-toolchain-template/internal/rules"
+	"github.com/labset/protobuf-toolchain/internal/rules"
 )
 
 func main() {

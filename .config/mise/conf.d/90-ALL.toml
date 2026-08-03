@@ -4,7 +4,7 @@ run = "rm -rf dist"
 
 [tasks.tidy]
 description = "tidy it"
-depends = ["schema:lint", "toolchain:lint"]
+depends = ["schema:tidy", "toolchain:tidy"]
 
 [tasks.generate]
 description = "generate it"

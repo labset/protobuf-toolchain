@@ -8,9 +8,9 @@ before:
     - go test ./...
 
 builds:
-  - main: cmd/protoc-gen-echo/main.go
-    id: protoc-gen-echo
-    binary: protoc-gen-echo
+  - main: cmd/protoc-gen-labset/main.go
+    id: protoc-gen-labset
+    binary: protoc-gen-labset
     env:
       - CGO_ENABLED=0
     goos:
@@ -18,9 +18,9 @@ builds:
       - windows
       - darwin
 
-  - main: cmd/echo-lint-plugin/main.go
-    id: echo-lint-plugin
-    binary: echo-lint-plugin
+  - main: cmd/labset-lint-plugin/main.go
+    id: labset-lint-plugin
+    binary: labset-lint-plugin
     env:
       - CGO_ENABLED=0
     goos:
@@ -43,21 +43,31 @@ archives:
       - goos: windows
         formats: [zip]
 
-brews:
-  - name: go-protobuf-toolchain-template
+homebrew_casks:
+  - name: protobuf-toolchain
+    binaries:
+      - protoc-gen-labset
+      - labset-lint-plugin
     repository:
       owner: labset
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-    homepage: "https://github.com/labset/go-protobuf-toolchain-template"
-    description: "Protobuf toolchain with protoc-gen-echo codegen plugin and echo-lint-plugin linter"
-    license: "Apache-2.0"
+    homepage: "https://github.com/labset/protobuf-toolchain"
+    description: "Protobuf toolchain with protoc-gen-labset codegen plugin and labset-lint-plugin linter"
     commit_author:
       name: goreleaserbot
       email: bot@goreleaser.com
     commit_msg_template: "brew: bump {{ .ProjectName }} to {{ .Tag }}"
     # only publish the tap for real releases, never for snapshots
     skip_upload: auto
+    # the binaries are not signed/notarized, so strip the quarantine flag on macOS
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/protoc-gen-labset"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/labset-lint-plugin"]
+          end
 
 changelog:
   sort: asc

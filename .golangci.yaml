@@ -19,5 +19,5 @@ linters:
           allow:
             - $gostd
             - buf.build/go/bufplugin/check
-            - github.com/labset/go-protobuf-toolchain-template/
+            - github.com/labset/protobuf-toolchain/
             - google.golang.org/protobuf

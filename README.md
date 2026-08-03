@@ -1,51 +1,68 @@
-## go-protobuf-toolchain-template
+## protobuf-toolchain
 
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=labset_go-protobuf-toolchain-template&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=labset_go-protobuf-toolchain-template)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=labset_protobuf-toolchain&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=labset_protobuf-toolchain)
 
-Template repository for building protobuf toolchains (protoc plugins) in Go.
+A toolchain for working with Protocol Buffers in Go. It ships two `buf`-compatible
+plugins:
 
-### using this template
-
-This template uses `labset` as the GitHub org. After creating your repo, replace it with your own:
-
-```bash
-grep -rl labset . --exclude-dir=.git | xargs sed -i '' 's/labset/YOUR_ORG/g'   # sed -i on Linux
-```
-
-This covers the Go module path and imports, the Homebrew tap owner, and the install commands below.
-Run `go mod tidy` afterwards. If you also rename the repo, update `go-protobuf-toolchain-template`
-to match.
+- **`protoc-gen-labset`** — a `protoc` codegen plugin. It selects a generator by
+  `mode` parameter, so a single binary can host several code generators.
+- **`labset-lint-plugin`** — a [`bufplugin`](https://buf.build/docs/cli/buf-plugins/)
+  check plugin that contributes custom lint rules to `buf lint`.
 
 ### usage
 
-- install it with Homebrew
+- install with Homebrew (installs both binaries)
 
 ```bash
-brew install labset/tap/go-protobuf-toolchain-template
+brew install labset/tap/protobuf-toolchain
 ```
 
-This installs both `protoc-gen-echo` and `echo-lint-plugin`.
-
-- install it with `go install`
+- install with `go install`
 
 ```bash
-go install github.com/labset/go-protobuf-toolchain-template/cmd/protoc-gen-echo@latest
-go install github.com/labset/go-protobuf-toolchain-template/cmd/echo-lint-plugin@latest
+go install github.com/labset/protobuf-toolchain/cmd/protoc-gen-labset@latest
+go install github.com/labset/protobuf-toolchain/cmd/labset-lint-plugin@latest
 ```
 
-- install it with mise (via the `go` backend)
+- install with mise (via the `go` backend)
 
 ```bash
-mise use "go:github.com/labset/go-protobuf-toolchain-template/cmd/protoc-gen-echo@latest"
-mise use "go:github.com/labset/go-protobuf-toolchain-template/cmd/echo-lint-plugin@latest"
+mise use "go:github.com/labset/protobuf-toolchain/cmd/protoc-gen-labset@latest"
+mise use "go:github.com/labset/protobuf-toolchain/cmd/labset-lint-plugin@latest"
 ```
 
 or pin them in a project's `mise.toml`:
 
 ```toml
 [tools]
-"go:github.com/labset/go-protobuf-toolchain-template/cmd/protoc-gen-echo" = "latest"
-"go:github.com/labset/go-protobuf-toolchain-template/cmd/echo-lint-plugin" = "latest"
+"go:github.com/labset/protobuf-toolchain/cmd/protoc-gen-labset" = "latest"
+"go:github.com/labset/protobuf-toolchain/cmd/labset-lint-plugin" = "latest"
+```
+
+### wiring the plugins into buf
+
+- codegen with `protoc-gen-labset`, selecting a generator with the `mode` option:
+
+```yaml
+# buf.gen.yaml
+version: v2
+plugins:
+  - local: protoc-gen-labset
+    out: gen
+    opt: mode=echo
+```
+
+- linting with `labset-lint-plugin`:
+
+```yaml
+# buf.yaml
+version: v2
+plugins:
+  - plugin: labset-lint-plugin
+lint:
+  use:
+    - STANDARD
 ```
 
 ## Development
@@ -57,6 +74,21 @@ or pin them in a project's `mise.toml`:
 ```bash
 mise install
 ```
+
+### layout
+
+```
+cmd/protoc-gen-labset    # codegen plugin entrypoint
+cmd/labset-lint-plugin   # lint plugin entrypoint
+internal/codegen         # generators + mode dispatch (GeneratorForMode)
+internal/rules           # lint rule specs (rules.All)
+protos                   # proto sources (schema module)
+```
+
+- **adding a generator**: implement `codegen.Generator` and register its `mode`
+  in `internal/codegen/modes.go`.
+- **adding a lint rule**: add a `check.RuleSpec` to `rules.All` in
+  `internal/rules/checks.go`.
 
 ### housekeeping tasks
 
@@ -108,12 +140,12 @@ mise run clean
 
 Releases are cut by [GoReleaser](https://goreleaser.com/) from the `release` workflow, which
 triggers when a GitHub release is created. It builds the binaries, publishes the archives to the
-release, and pushes a Homebrew formula to the tap.
+release, and pushes a Homebrew cask to the tap.
 
 **One-time setup** (required before the first release publishes the Homebrew tap):
 
 1. Create the tap repository `labset/homebrew-tap` (an empty repo is fine). GoReleaser commits the
-   generated formula into it.
+   generated cask into it.
 2. Add a `HOMEBREW_TAP_GITHUB_TOKEN` repository secret, a GitHub personal access token with
    `contents: write` permission on `labset/homebrew-tap`. The default `GITHUB_TOKEN` cannot push to
    another repository, so this separate token is required.

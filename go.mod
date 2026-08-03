@@ -1,6 +1,6 @@
-module github.com/labset/go-protobuf-toolchain-template
+module github.com/labset/protobuf-toolchain
 
-go 1.25.3
+go 1.26.2
 
 require (
 	buf.build/go/bufplugin v0.10.0
