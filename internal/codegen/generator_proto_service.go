@@ -37,8 +37,11 @@ func (g *protoServiceGenerator) Generate(plugin *protogen.Plugin) error {
 			continue
 		}
 
-		for _, message := range allMessages(file.Messages) {
+		for _, message := range file.Messages {
 			if err = g.generateForMessage(plugin, tmpl, file, message, seenPaths); err != nil {
+				return err
+			}
+			if err = ensureNoNestedEntities(message); err != nil {
 				return err
 			}
 		}
@@ -47,16 +50,25 @@ func (g *protoServiceGenerator) Generate(plugin *protogen.Plugin) error {
 	return nil
 }
 
-// allMessages flattens messages together with their nested messages, so entity
-// annotations on nested types are handled rather than silently skipped.
-func allMessages(messages []*protogen.Message) []*protogen.Message {
-	out := make([]*protogen.Message, 0, len(messages))
-	for _, message := range messages {
-		out = append(out, message)
-		out = append(out, allMessages(message.Messages)...)
+// ensureNoNestedEntities rejects entity annotations on nested messages. Only
+// top-level messages model first-class resources; a nested message is scoped to
+// its parent and cannot be referenced by an unqualified name from a generated
+// file, so annotating one is a mistake worth surfacing rather than silently
+// skipping or emitting an invalid type reference.
+func ensureNoNestedEntities(message *protogen.Message) error {
+	for _, nested := range message.Messages {
+		if _, ok := entityOperations(nested); ok {
+			return fmt.Errorf(
+				"proto-service: nested message %s is annotated as an entity; only top-level messages are supported",
+				nested.Desc.FullName(),
+			)
+		}
+		if err := ensureNoNestedEntities(nested); err != nil {
+			return err
+		}
 	}
 
-	return out
+	return nil
 }
 
 func (g *protoServiceGenerator) generateForMessage(

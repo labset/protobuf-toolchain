@@ -56,9 +56,11 @@ func TestProtoServiceGenerator(t *testing.T) {
 	}
 }
 
-// TestProtoServiceGeneratorNestedEntity verifies entity annotations on nested
-// messages are handled rather than silently skipped.
-func TestProtoServiceGeneratorNestedEntity(t *testing.T) {
+// TestProtoServiceGeneratorNestedEntityRejected verifies an entity annotation on
+// a nested message is reported as an error — nested messages are not first-class
+// resources and cannot be referenced by an unqualified name from a generated
+// file, so they must not be silently skipped or emitted as invalid output.
+func TestProtoServiceGeneratorNestedEntityRejected(t *testing.T) {
 	accountFile := &descriptorpb.FileDescriptorProto{
 		Name:       proto.String("nested/v1/account.proto"),
 		Package:    proto.String("nested.v1"),
@@ -78,17 +80,8 @@ func TestProtoServiceGeneratorNestedEntity(t *testing.T) {
 		}},
 	}
 
-	plugin, err := generate(t, []string{"nested/v1/account.proto"}, accountFile)
-	require.NoError(t, err)
-
-	var names []string
-	for _, file := range plugin.Response().GetFile() {
-		names = append(names, file.GetName())
-	}
-	require.Equal(t, []string{
-		"nested/v1/rpc_create_profile.proto",
-		"nested/v1/service_profile.proto",
-	}, names)
+	_, err := generate(t, []string{"nested/v1/account.proto"}, accountFile)
+	require.ErrorContains(t, err, "nested.v1.Account.Profile")
 }
 
 // TestProtoServiceGeneratorDuplicatePath verifies distinct entities that resolve
