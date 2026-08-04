@@ -9,3 +9,13 @@ enum Role {
   ROLE_ENTITY = 1;
   ROLE_REFERENCE = 2;
 }
+
+// Operation enumerates the CRUD operations a service may expose for an entity.
+enum Operation {
+  OPERATION_UNSPECIFIED = 0;
+  OPERATION_CREATE = 1;
+  OPERATION_READ = 2;
+  OPERATION_UPDATE = 3;
+  OPERATION_DELETE = 4;
+  OPERATION_LIST = 5;
+}

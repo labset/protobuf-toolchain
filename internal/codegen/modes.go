@@ -10,6 +10,8 @@ func GeneratorForMode(raw string) (Generator, error) {
 	switch p.mode {
 	case "echo":
 		return &echoGenerator{}, nil
+	case "proto-service":
+		return &protoServiceGenerator{}, nil
 	default:
 		return nil, fmt.Errorf("unknown mode %q", p.mode)
 	}

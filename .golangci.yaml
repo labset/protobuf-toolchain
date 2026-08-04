@@ -20,4 +20,5 @@ linters:
             - $gostd
             - buf.build/go/bufplugin/check
             - github.com/labset/protobuf-toolchain/
+            - github.com/stretchr/testify
             - google.golang.org/protobuf
