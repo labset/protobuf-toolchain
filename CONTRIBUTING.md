@@ -90,10 +90,15 @@ mise run generate
 mise run lint
 ```
 
-- format and auto-fix
+- format the protos and the Go code
 
 ```bash
-mise run schema:lint:fix
+mise run format
+```
+
+- auto-fix lint issues
+
+```bash
 mise run toolchain:lint:fix
 ```
 

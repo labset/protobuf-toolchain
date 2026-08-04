@@ -10,8 +10,11 @@ run = "golangci-lint run"
 [tasks."toolchain:lint:fix"]
 run = [
     "golangci-lint run --fix",
-    "go fmt ./..."
+    "golangci-lint fmt"
 ]
+
+[tasks."toolchain:format"]
+run = "golangci-lint fmt"
 
 [tasks."toolchain:test"]
 run = "go test ./..."
