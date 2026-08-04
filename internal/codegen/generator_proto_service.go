@@ -20,9 +20,7 @@ var protoServiceTemplateFS embed.FS
 // protoServiceGenerator emits, for every message annotated as ROLE_ENTITY with a
 // non-empty operation set, one rpc_<operation>_<entity>.proto per operation
 // (carrying that operation's request/response payloads) plus a
-// service_<entity>.proto tying the RPCs together. The per-operation shape lives
-// entirely in the templates; this generator only discovers entities and drives
-// template execution.
+// service_<entity>.proto tying the RPCs together.
 type protoServiceGenerator struct{}
 
 func (g *protoServiceGenerator) Generate(plugin *protogen.Plugin) error {
@@ -153,10 +151,7 @@ func newGeneratedFile(
 	return plugin.NewGeneratedFile(filename, importPath), nil
 }
 
-// entityData is the naming information shared by both templates. It carries no
-// operation-specific logic — the templates decide what each operation renders.
-// List operations use a deterministic "<Entity>Collection" naming (never a
-// fragile pluralization) so any entity name works.
+// entityData holds the naming fields shared by both templates.
 type entityData struct {
 	Package     string
 	Source      string
@@ -164,14 +159,13 @@ type entityData struct {
 	EntityField string // project
 }
 
-// rpcModel is the input for rpc.proto.tmpl: one entity plus one operation token.
+// rpcModel is the input for rpc.proto.tmpl.
 type rpcModel struct {
 	entityData
 	Operation string // CREATE | READ | UPDATE | DELETE | LIST
 }
 
-// serviceModel is the input for service.proto.tmpl: one entity plus the ordered
-// list of operations and the payload files to import.
+// serviceModel is the input for service.proto.tmpl.
 type serviceModel struct {
 	entityData
 	Imports    []string
