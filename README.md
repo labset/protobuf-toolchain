@@ -144,10 +144,42 @@ internal/rules           # lint rule specs (rules.All)
 protos                   # proto sources (schema module)
 ```
 
-- **adding a generator**: implement `codegen.Generator` and register its `mode`
-  in `internal/codegen/modes.go`.
-- **adding a lint rule**: add a `check.RuleSpec` to `rules.All` in
-  `internal/rules/checks.go`.
+### adding a generator
+
+Implement `codegen.Generator` — a single `Generate(*protogen.Plugin) error` — and
+register it by `mode`:
+
+```go
+// internal/codegen/modes.go
+case "proto-service":
+    return &protoServiceGenerator{}, nil
+```
+
+Keep the Go side to discovering _what_ to emit; let templates own the output shape.
+
+- **templates** — embed `internal/codegen/templates/<mode>/*.tmpl`:
+
+```go
+//go:embed templates/proto-service/*.tmpl
+var protoServiceTemplateFS embed.FS
+```
+
+- **golden files** — expected output under `internal/codegen/golden/<mode>/`. The
+  test builds an in-memory `pluginpb.CodeGeneratorRequest`, runs the generator,
+  and diffs each generated file against its golden. Regenerate after an
+  intentional change:
+
+```bash
+mise exec -- go test ./internal/codegen/ -update
+```
+
+- **tests** — cover the golden output plus the generator's skip/error states; see
+  `internal/codegen/generator_proto_service_test.go`.
+
+### adding a lint rule
+
+Add a `check.RuleSpec` to `rules.All` in `internal/rules/checks.go`;
+`labset-lint-plugin` serves whatever is registered there.
 
 ### housekeeping tasks
 
