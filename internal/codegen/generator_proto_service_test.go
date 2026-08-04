@@ -114,6 +114,73 @@ func TestProtoServiceGeneratorDuplicatePath(t *testing.T) {
 	require.ErrorContains(t, err, "both generate")
 }
 
+// TestProtoServiceGeneratorSkips verifies messages that are not generatable
+// entities produce no output and no error: an unannotated message, non-entity
+// roles, an empty operation set, and an operations list that contains only
+// OPERATION_UNSPECIFIED.
+func TestProtoServiceGeneratorSkips(t *testing.T) {
+	tests := map[string]struct {
+		annotate bool
+		role     pluginV1.Role
+		ops      []pluginV1.Operation
+	}{
+		"no labset annotation": {annotate: false},
+		"reference role": {
+			annotate: true,
+			role:     pluginV1.Role_ROLE_REFERENCE,
+			ops:      []pluginV1.Operation{pluginV1.Operation_OPERATION_CREATE},
+		},
+		"unspecified role": {
+			annotate: true,
+			role:     pluginV1.Role_ROLE_UNSPECIFIED,
+			ops:      []pluginV1.Operation{pluginV1.Operation_OPERATION_CREATE},
+		},
+		"empty operations": {
+			annotate: true,
+			role:     pluginV1.Role_ROLE_ENTITY,
+		},
+		"only unspecified operation": {
+			annotate: true,
+			role:     pluginV1.Role_ROLE_ENTITY,
+			ops:      []pluginV1.Operation{pluginV1.Operation_OPERATION_UNSPECIFIED},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			message := &descriptorpb.DescriptorProto{
+				Name:  proto.String("Thing"),
+				Field: []*descriptorpb.FieldDescriptorProto{stringField("id", 1)},
+			}
+			if tt.annotate {
+				opts := &descriptorpb.MessageOptions{}
+				proto.SetExtension(opts, pluginV1.E_Message, &pluginV1.MessageOptions{
+					Role:       tt.role,
+					Operations: tt.ops,
+				})
+				message.Options = opts
+			}
+
+			file := &descriptorpb.FileDescriptorProto{
+				Name:       proto.String("skip/v1/thing.proto"),
+				Package:    proto.String("skip.v1"),
+				Syntax:     proto.String("proto3"),
+				Dependency: []string{"labset/plugin/v1/options.proto"},
+				Options: &descriptorpb.FileOptions{
+					GoPackage: proto.String(
+						"github.com/labset/protobuf-toolchain/test/skip/v1;skipv1",
+					),
+				},
+				MessageType: []*descriptorpb.DescriptorProto{message},
+			}
+
+			plugin, err := generate(t, []string{"skip/v1/thing.proto"}, file)
+			require.NoError(t, err)
+			require.Empty(t, plugin.Response().GetFile())
+		})
+	}
+}
+
 // generate runs the proto-service generator over the given files (plus the
 // well-known and labset descriptor dependencies) and returns the plugin so the
 // caller can inspect its response.
