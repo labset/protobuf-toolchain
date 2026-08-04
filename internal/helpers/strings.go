@@ -1,5 +1,3 @@
-// Package helpers holds small, dependency-free utilities shared across the
-// toolchain, such as identifier case conversions.
 package helpers
 
 import "strings"
