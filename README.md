@@ -65,101 +65,66 @@ lint:
     - STANDARD
 ```
 
-## Development
+### generators
 
-### requirements
+#### `mode=proto-service`
 
-- [mise](https://mise.jdx.dev/) manages `go`, `buf`, `golangci-lint` and `goreleaser` versions (see `.config/mise/conf.d`)
+Annotate an entity with `(labset.plugin.v1.message)` — a `role` and the CRUD
+`operations` to expose:
+
+```protobuf
+// projectmanagement/v1/project.proto
+syntax = "proto3";
+package projectmanagement.v1;
+
+import "labset/plugin/v1/options.proto";
+
+message Project {
+  option (labset.plugin.v1.message) = {
+    role: ROLE_ENTITY
+    operations: [OPERATION_CREATE, OPERATION_READ, OPERATION_UPDATE, OPERATION_DELETE, OPERATION_LIST]
+  };
+
+  string id = 1;
+  string name = 2;
+}
+```
+
+```yaml
+# buf.gen.yaml
+plugins:
+  - local: protoc-gen-labset
+    out: gen
+    opt: mode=proto-service
+```
+
+Emits one payload file per operation plus the service:
+
+```
+gen/projectmanagement/v1/rpc_create_project.proto   # CreateProjectRequest/Response
+gen/projectmanagement/v1/rpc_read_project.proto     # GetProjectRequest (id validated as uuid)
+gen/projectmanagement/v1/rpc_update_project.proto   # UpdateProjectRequest + update_mask
+gen/projectmanagement/v1/rpc_delete_project.proto
+gen/projectmanagement/v1/rpc_list_project.proto     # ListProjectCollectionRequest + read_mask
+gen/projectmanagement/v1/service_project.proto      # ProjectService
+```
+
+The payloads use `google.protobuf.FieldMask` and validate `id` with
+[`protovalidate`](https://buf.build/bufbuild/protovalidate), so consumers that
+compile the output need the dependency:
+
+```yaml
+# buf.yaml (consumer of the generated protos)
+version: v2
+deps:
+  - buf.build/bufbuild/protovalidate
+```
 
 ```bash
-mise install
+buf dep update
 ```
 
-### layout
+## Contributing
 
-```
-cmd/protoc-gen-labset    # codegen plugin entrypoint
-cmd/labset-lint-plugin   # lint plugin entrypoint
-internal/codegen         # generators + mode dispatch (GeneratorForMode)
-internal/rules           # lint rule specs (rules.All)
-protos                   # proto sources (schema module)
-```
-
-- **adding a generator**: implement `codegen.Generator` and register its `mode`
-  in `internal/codegen/modes.go`.
-- **adding a lint rule**: add a `check.RuleSpec` to `rules.All` in
-  `internal/rules/checks.go`.
-
-### housekeeping tasks
-
-- list available tasks
-
-```bash
-mise tasks
-```
-
-- generate code from proto files
-
-```bash
-mise run generate
-```
-
-- lint the protos and the Go code
-
-```bash
-mise run lint
-```
-
-- format and auto-fix
-
-```bash
-mise run schema:lint:fix
-mise run toolchain:lint:fix
-```
-
-- tidy dependencies
-
-```bash
-mise run schema:tidy      # buf dep update
-mise run toolchain:tidy   # go mod tidy
-```
-
-- build the binaries
-
-```bash
-mise run build
-```
-
-- clean build artifacts
-
-```bash
-mise run clean
-```
-
-### releasing
-
-Releases are cut by [GoReleaser](https://goreleaser.com/) from the `release` workflow, which
-triggers when a GitHub release is created. It builds the binaries, publishes the archives to the
-release, and pushes a Homebrew cask to the tap.
-
-**One-time setup** (required before the first release publishes the Homebrew tap):
-
-1. Create the tap repository `labset/homebrew-tap` (an empty repo is fine). GoReleaser commits the
-   generated cask into it.
-2. Add a `HOMEBREW_TAP_GITHUB_TOKEN` repository secret, a GitHub personal access token with
-   `contents: write` permission on `labset/homebrew-tap`. The default `GITHUB_TOKEN` cannot push to
-   another repository, so this separate token is required.
-
-**Cutting a release:**
-
-```bash
-git tag v0.1.0
-git push origin v0.1.0
-# then create a GitHub release for the tag (this triggers the release workflow)
-```
-
-To validate the release pipeline locally without publishing:
-
-```bash
-mise run build   # goreleaser build --clean --snapshot
-```
+Local setup, project layout, how to add a generator or lint rule, and the release
+process live in [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -9,6 +9,7 @@ option go_package = "github.com/labset/protobuf-toolchain/api/labset/plugin/v1;p
 
 message MessageOptions {
   Role role = 1;
+  repeated Operation operations = 2;
 }
 
 extend google.protobuf.MessageOptions {
