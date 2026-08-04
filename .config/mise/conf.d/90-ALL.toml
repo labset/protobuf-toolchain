@@ -8,7 +8,7 @@ depends = ["schema:tidy", "toolchain:tidy"]
 
 [tasks.generate]
 description = "generate it"
-depends = ["schema:generate"]
+depends = ["schema:generate", "toolchain:generate"]
 
 [tasks.lint]
 description = "lint it"

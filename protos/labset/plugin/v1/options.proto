@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package labset.plugin.v1;
+
+import "google/protobuf/descriptor.proto";
+import "labset/plugin/v1/enums.proto";
+
+option go_package = "github.com/labset/protobuf-toolchain/api/labset/plugin/v1;pluginV1";
+
+message MessageOptions {
+  Role role = 1;
+}
+
+extend google.protobuf.MessageOptions {
+  MessageOptions message = 50001;
+}
