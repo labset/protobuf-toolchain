@@ -47,7 +47,7 @@ func checkEntityAnnotationRootOnly(
 
 	responseWriter.AddAnnotation(
 		check.WithMessagef(
-			"Message %q carries a labset entity annotation but is nested in %q; role/operations annotations may only be applied to top-level messages.",
+			"Entity annotation must be on a top-level message; %q is nested in %q.",
 			messageDescriptor.Name(),
 			messageDescriptor.Parent().FullName(),
 		),

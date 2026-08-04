@@ -40,7 +40,7 @@ func checkEntityEmbeddedField(
 	if field == nil {
 		responseWriter.AddAnnotation(
 			check.WithMessagef(
-				"Entity message %q must embed %s at field number 1, but has no field number 1.",
+				"Entity %q must embed %s at field 1.",
 				messageDescriptor.Name(),
 				entityMessageFullName,
 			),
@@ -54,7 +54,7 @@ func checkEntityEmbeddedField(
 		string(embedded.FullName()) != entityMessageFullName {
 		responseWriter.AddAnnotation(
 			check.WithMessagef(
-				"Entity message %q must embed a singular %s at field number 1, but field %q is %s.",
+				"Entity %q must embed %s at field 1, but field %q is %s.",
 				messageDescriptor.Name(),
 				entityMessageFullName,
 				field.Name(),
