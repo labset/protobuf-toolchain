@@ -94,12 +94,30 @@ func TestProtoServiceGeneratorNestedEntity(t *testing.T) {
 // TestProtoServiceGeneratorDuplicatePath verifies distinct entities that resolve
 // to the same output path produce an error instead of duplicate output files.
 func TestProtoServiceGeneratorDuplicatePath(t *testing.T) {
-	// Two files in the same directory, different proto packages, each with a
-	// Project entity — both resolve to shared/v1/rpc_create_project.proto.
-	alpha := entityFileInDir("shared/v1/alpha.proto", "alpha.v1", "alphav1", "Project")
-	beta := entityFileInDir("shared/v1/beta.proto", "beta.v1", "betav1", "Project")
+	// Proto names are case-sensitive, so OrderId and OrderID are two valid,
+	// distinct messages in one package — but both snake-case to "order_id" and
+	// so claim the same rpc_create_order_id.proto.
+	orders := &descriptorpb.FileDescriptorProto{
+		Name:       proto.String("orders/v1/orders.proto"),
+		Package:    proto.String("orders.v1"),
+		Syntax:     proto.String("proto3"),
+		Dependency: []string{"labset/plugin/v1/options.proto"},
+		Options: &descriptorpb.FileOptions{
+			GoPackage: proto.String("github.com/labset/protobuf-toolchain/test/orders/v1;ordersv1"),
+		},
+		MessageType: []*descriptorpb.DescriptorProto{
+			entityMessage("OrderId",
+				[]*descriptorpb.FieldDescriptorProto{stringField("id", 1)},
+				pluginV1.Operation_OPERATION_CREATE,
+			),
+			entityMessage("OrderID",
+				[]*descriptorpb.FieldDescriptorProto{stringField("id", 1)},
+				pluginV1.Operation_OPERATION_CREATE,
+			),
+		},
+	}
 
-	_, err := generate(t, []string{"shared/v1/alpha.proto", "shared/v1/beta.proto"}, alpha, beta)
+	_, err := generate(t, []string{"orders/v1/orders.proto"}, orders)
 	require.ErrorContains(t, err, "both generate")
 }
 
@@ -127,28 +145,6 @@ func generate(
 	require.NoError(t, err)
 
 	return plugin, (&protoServiceGenerator{}).Generate(plugin)
-}
-
-// entityFileInDir builds a single-file, single-entity descriptor with a create
-// operation, used to construct output-path collisions.
-func entityFileInDir(name, pkg, goPkg, entity string) *descriptorpb.FileDescriptorProto {
-	return &descriptorpb.FileDescriptorProto{
-		Name:       proto.String(name),
-		Package:    proto.String(pkg),
-		Syntax:     proto.String("proto3"),
-		Dependency: []string{"labset/plugin/v1/options.proto"},
-		Options: &descriptorpb.FileOptions{
-			GoPackage: proto.String(
-				"github.com/labset/protobuf-toolchain/test/" + goPkg + ";" + goPkg,
-			),
-		},
-		MessageType: []*descriptorpb.DescriptorProto{
-			entityMessage(entity,
-				[]*descriptorpb.FieldDescriptorProto{stringField("id", 1)},
-				pluginV1.Operation_OPERATION_CREATE,
-			),
-		},
-	}
 }
 
 // projectManagementFileDescriptor builds a project-management proto with a
