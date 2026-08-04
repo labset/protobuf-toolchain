@@ -65,6 +65,65 @@ lint:
     - STANDARD
 ```
 
+### generators
+
+#### `mode=proto-service`
+
+Annotate an entity with `(labset.plugin.v1.message)` — a `role` and the CRUD
+`operations` to expose:
+
+```protobuf
+// projectmanagement/v1/project.proto
+syntax = "proto3";
+package projectmanagement.v1;
+
+import "labset/plugin/v1/options.proto";
+
+message Project {
+  option (labset.plugin.v1.message) = {
+    role: ROLE_ENTITY
+    operations: [OPERATION_CREATE, OPERATION_READ, OPERATION_UPDATE, OPERATION_DELETE, OPERATION_LIST]
+  };
+
+  string id = 1;
+  string name = 2;
+}
+```
+
+```yaml
+# buf.gen.yaml
+plugins:
+  - local: protoc-gen-labset
+    out: gen
+    opt: mode=proto-service
+```
+
+Emits one payload file per operation plus the service:
+
+```
+gen/projectmanagement/v1/rpc_create_project.proto   # CreateProjectRequest/Response
+gen/projectmanagement/v1/rpc_read_project.proto     # GetProjectRequest (id validated as uuid)
+gen/projectmanagement/v1/rpc_update_project.proto   # UpdateProjectRequest + update_mask
+gen/projectmanagement/v1/rpc_delete_project.proto
+gen/projectmanagement/v1/rpc_list_project.proto     # ListProjectCollectionRequest + read_mask
+gen/projectmanagement/v1/service_project.proto      # ProjectService
+```
+
+The payloads use `google.protobuf.FieldMask` and validate `id` with
+[`protovalidate`](https://buf.build/bufbuild/protovalidate), so consumers that
+compile the output need the dependency:
+
+```yaml
+# buf.yaml (consumer of the generated protos)
+version: v2
+deps:
+  - buf.build/bufbuild/protovalidate
+```
+
+```bash
+buf dep update
+```
+
 ## Development
 
 ### requirements

@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"embed"
+	"fmt"
 	"path"
 	"strings"
 	"text/template"
@@ -30,13 +31,14 @@ func (g *protoServiceGenerator) Generate(plugin *protogen.Plugin) error {
 		return err
 	}
 
+	seenPaths := make(map[string]string)
 	for _, file := range plugin.Files {
 		if !file.Generate {
 			continue
 		}
 
-		for _, message := range file.Messages {
-			if err = g.generateForMessage(plugin, tmpl, file, message); err != nil {
+		for _, message := range allMessages(file.Messages) {
+			if err = g.generateForMessage(plugin, tmpl, file, message, seenPaths); err != nil {
 				return err
 			}
 		}
@@ -45,11 +47,24 @@ func (g *protoServiceGenerator) Generate(plugin *protogen.Plugin) error {
 	return nil
 }
 
+// allMessages flattens messages together with their nested messages, so entity
+// annotations on nested types are handled rather than silently skipped.
+func allMessages(messages []*protogen.Message) []*protogen.Message {
+	out := make([]*protogen.Message, 0, len(messages))
+	for _, message := range messages {
+		out = append(out, message)
+		out = append(out, allMessages(message.Messages)...)
+	}
+
+	return out
+}
+
 func (g *protoServiceGenerator) generateForMessage(
 	plugin *protogen.Plugin,
 	tmpl *template.Template,
 	file *protogen.File,
 	message *protogen.Message,
+	seenPaths map[string]string,
 ) error {
 	operations, ok := entityOperations(message)
 	if !ok {
@@ -76,8 +91,11 @@ func (g *protoServiceGenerator) generateForMessage(
 		name := strings.TrimPrefix(op.String(), "OPERATION_")
 		filename := path.Join(dir, "rpc_"+strings.ToLower(name)+"_"+data.EntityField+".proto")
 
-		out := plugin.NewGeneratedFile(filename, file.GoImportPath)
-		if err := tmpl.ExecuteTemplate(
+		out, err := newGeneratedFile(plugin, seenPaths, filename, entity, file.GoImportPath)
+		if err != nil {
+			return err
+		}
+		if err = tmpl.ExecuteTemplate(
 			out,
 			"rpc.proto.tmpl",
 			rpcModel{entityData: data, Operation: name},
@@ -94,14 +112,39 @@ func (g *protoServiceGenerator) generateForMessage(
 	}
 
 	servicePath := path.Join(dir, "service_"+data.EntityField+".proto")
-	out := plugin.NewGeneratedFile(servicePath, file.GoImportPath)
+	out, err := newGeneratedFile(plugin, seenPaths, servicePath, entity, file.GoImportPath)
+	if err != nil {
+		return err
+	}
+
 	return tmpl.ExecuteTemplate(out, "service.proto.tmpl", service)
+}
+
+// newGeneratedFile registers filename and creates the output file, returning an
+// error if a different entity already claimed the same path — distinct entity
+// names can snake-case into the same file in a directory, which protoc rejects
+// as a duplicate generated file.
+func newGeneratedFile(
+	plugin *protogen.Plugin,
+	seenPaths map[string]string,
+	filename, entity string,
+	importPath protogen.GoImportPath,
+) (*protogen.GeneratedFile, error) {
+	if prev, ok := seenPaths[filename]; ok {
+		return nil, fmt.Errorf(
+			"proto-service: entities %q and %q both generate %q",
+			prev, entity, filename,
+		)
+	}
+	seenPaths[filename] = entity
+
+	return plugin.NewGeneratedFile(filename, importPath), nil
 }
 
 // entityData is the naming information shared by both templates. It carries no
 // operation-specific logic — the templates decide what each operation renders.
-// List operations use a deterministic "<Entity>Items" naming (never a fragile
-// pluralization) so any entity name works.
+// List operations use a deterministic "<Entity>Collection" naming (never a
+// fragile pluralization) so any entity name works.
 type entityData struct {
 	Package     string
 	Source      string
