@@ -71,13 +71,7 @@ func (g *protoServiceGenerator) generateForMessage(
 	dir := path.Dir(data.Source)
 
 	service := serviceModel{entityData: data}
-	seen := make(map[pluginV1.Operation]bool)
 	for _, op := range operations {
-		if op == pluginV1.Operation_OPERATION_UNSPECIFIED || seen[op] {
-			continue
-		}
-		seen[op] = true
-
 		name := strings.TrimPrefix(op.String(), "OPERATION_")
 		filename := path.Join(dir, "rpc_"+strings.ToLower(name)+"_"+data.EntityField+".proto")
 
@@ -95,10 +89,6 @@ func (g *protoServiceGenerator) generateForMessage(
 
 		service.Operations = append(service.Operations, name)
 		service.Imports = append(service.Imports, filename)
-	}
-
-	if len(service.Operations) == 0 {
-		return nil
 	}
 
 	servicePath := path.Join(dir, "service_"+data.EntityField+".proto")
@@ -152,8 +142,10 @@ type serviceModel struct {
 	Operations []string
 }
 
-// entityOperations returns the operation set when the message is a ROLE_ENTITY
-// carrying at least one operation, else reports false.
+// entityOperations returns the distinct, generatable operations for a message
+// when it is a ROLE_ENTITY, else reports false. OPERATION_UNSPECIFIED and
+// duplicates are dropped, so a message that requests no real operation is not
+// generatable.
 func entityOperations(message *protogen.Message) ([]pluginV1.Operation, bool) {
 	opts, ok := message.Desc.Options().(*descriptorpb.MessageOptions)
 	if !ok || opts == nil {
@@ -167,9 +159,19 @@ func entityOperations(message *protogen.Message) ([]pluginV1.Operation, bool) {
 	if !ok || msgOpts == nil {
 		return nil, false
 	}
-	if msgOpts.GetRole() != pluginV1.Role_ROLE_ENTITY || len(msgOpts.GetOperations()) == 0 {
+	if msgOpts.GetRole() != pluginV1.Role_ROLE_ENTITY {
 		return nil, false
 	}
 
-	return msgOpts.GetOperations(), true
+	seen := make(map[pluginV1.Operation]bool)
+	var operations []pluginV1.Operation
+	for _, op := range msgOpts.GetOperations() {
+		if op == pluginV1.Operation_OPERATION_UNSPECIFIED || seen[op] {
+			continue
+		}
+		seen[op] = true
+		operations = append(operations, op)
+	}
+
+	return operations, len(operations) > 0
 }
