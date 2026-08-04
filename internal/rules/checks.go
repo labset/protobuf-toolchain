@@ -23,6 +23,9 @@ func messageAnnotation(messageDescriptor protoreflect.MessageDescriptor) *plugin
 	if !proto.HasExtension(options, pluginV1.E_Message) {
 		return nil
 	}
-	annotation, _ := proto.GetExtension(options, pluginV1.E_Message).(*pluginV1.MessageOptions)
+	annotation, ok := proto.GetExtension(options, pluginV1.E_Message).(*pluginV1.MessageOptions)
+	if !ok {
+		return nil
+	}
 	return annotation
 }

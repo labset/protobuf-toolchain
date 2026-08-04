@@ -56,18 +56,19 @@ func runRule(t *testing.T, ruleID, caseDir, fixture string) []annotation {
 	response, err := client.Check(ctx, request)
 	require.NoError(t, err)
 
+	// Sort on the full location so the order is stable even when one rule fires
+	// on several messages in a single file.
+	annotations := response.Annotations()
+	sort.Slice(annotations, func(i, j int) bool {
+		return check.CompareAnnotations(annotations[i], annotations[j]) < 0
+	})
+
 	var got []annotation
-	for _, a := range response.Annotations() {
+	for _, a := range annotations {
 		got = append(got, annotation{
 			ruleID: a.RuleID(),
 			file:   a.FileLocation().FileDescriptor().ProtoreflectFileDescriptor().Path(),
 		})
 	}
-	sort.Slice(got, func(i, j int) bool {
-		if got[i].ruleID != got[j].ruleID {
-			return got[i].ruleID < got[j].ruleID
-		}
-		return got[i].file < got[j].file
-	})
 	return got
 }

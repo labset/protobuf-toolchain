@@ -67,16 +67,15 @@ func checkEntityEmbeddedField(
 }
 
 func describeFieldType(field protoreflect.FieldDescriptor) string {
+	if field.IsMap() {
+		return "a map"
+	}
 	kind := field.Kind().String()
 	if message := field.Message(); message != nil {
 		kind = string(message.FullName())
 	}
-	switch {
-	case field.IsMap():
-		return "a map"
-	case field.IsList():
+	if field.IsList() {
 		return "a repeated " + kind
-	default:
-		return "a " + kind
 	}
+	return "a " + kind
 }
