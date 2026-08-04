@@ -12,12 +12,6 @@ plugins:
 
 ### usage
 
-- install with Homebrew (installs both binaries)
-
-```bash
-brew install labset/tap/protobuf-toolchain
-```
-
 - install with `go install`
 
 ```bash
