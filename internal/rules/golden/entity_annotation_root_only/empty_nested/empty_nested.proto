@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package example.v1;
+
+import "labset/plugin/v1/options.proto";
+
+// Inner sets the labset annotation but leaves it empty (no role, no operations).
+// An empty annotation asserts no entity semantics, so the nesting is not a
+// violation.
+message Box {
+  string id = 1;
+
+  message Inner {
+    option (labset.plugin.v1.message) = {};
+
+    string id = 1;
+  }
+}

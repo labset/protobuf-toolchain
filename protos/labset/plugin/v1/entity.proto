@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package labset.plugin.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/labset/protobuf-toolchain/api/labset/plugin/v1;pluginV1";
+
+// Entity carries the identity and lifecycle timestamps shared by every
+// ROLE_ENTITY message. Such a message is expected to embed it at field
+// number 1.
+message Entity {
+  string id = 1;
+  google.protobuf.Timestamp created_at = 2;
+  google.protobuf.Timestamp updated_at = 3;
+  google.protobuf.Timestamp deleted_at = 4;
+}

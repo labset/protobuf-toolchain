@@ -55,8 +55,20 @@ mise exec -- go test ./internal/codegen/ -update
 
 ## adding a lint rule
 
-Add a `check.RuleSpec` to `rules.All` in `internal/rules/checks.go`;
-`labset-lint-plugin` serves whatever is registered there.
+Register a `check.RuleSpec` in `rules.All` (`internal/rules/checks.go`);
+`labset-lint-plugin` serves whatever is listed there. Give each rule its own
+`check_<name>.go` file (mirroring `generator_<mode>.go`) — see
+`internal/rules/check_entity_embedded_field.go`, which uses
+`checkutil.NewMessageRuleHandler` to walk every message and
+`responseWriter.AddAnnotation` to report a violation. Each rule needs a unique
+uppercase `ID`, a `Purpose` ending in a period, and `Type: check.RuleTypeLint`.
+
+- **fixtures** — proto inputs live under `internal/rules/golden/<check>/<case>/`,
+  compiled with `checktest`. Their labset imports resolve against the real
+  `protos` module (not copies) via the fixture's `DirPaths`.
+- **tests** — one `check_<name>_test.go` per rule; a table of cases runs the rule
+  over its fixtures and asserts which annotations fire. `TestSpec` validates every
+  registered spec.
 
 ## housekeeping tasks
 
@@ -78,10 +90,15 @@ mise run generate
 mise run lint
 ```
 
-- format and auto-fix
+- format the protos and the Go code
 
 ```bash
-mise run schema:lint:fix
+mise run format
+```
+
+- auto-fix lint issues
+
+```bash
 mise run toolchain:lint:fix
 ```
 

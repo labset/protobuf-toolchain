@@ -77,6 +77,7 @@ Annotate an entity with `(labset.plugin.v1.message)` — a `role` and the CRUD
 syntax = "proto3";
 package projectmanagement.v1;
 
+import "labset/plugin/v1/entity.proto";
 import "labset/plugin/v1/options.proto";
 
 message Project {
@@ -85,7 +86,7 @@ message Project {
     operations: [OPERATION_CREATE, OPERATION_READ, OPERATION_UPDATE, OPERATION_DELETE, OPERATION_LIST]
   };
 
-  string id = 1;
+  labset.plugin.v1.Entity entity = 1;
   string name = 2;
 }
 ```
@@ -122,6 +123,31 @@ deps:
 
 ```bash
 buf dep update
+```
+
+### lint rules
+
+`labset-lint-plugin` contributes rules that keep entity annotations well-formed.
+They are on by default once the plugin is wired into `buf.yaml`:
+
+- **`LABSET_ENTITY_ANNOTATION_ROOT_ONLY`** — the `(labset.plugin.v1.message)`
+  role/operations annotation may only be applied to a top-level message. A nested
+  message cannot be referenced by an unqualified name from generated files, so the
+  codegen silently skips it; this rule surfaces the misplacement instead.
+- **`LABSET_ENTITY_EMBEDDED_FIELD`** — a `ROLE_ENTITY` message must embed
+  `labset.plugin.v1.Entity` at field number 1. `Entity` carries the shared `id`
+  and the `created_at` / `updated_at` / `deleted_at` lifecycle timestamps:
+
+```protobuf
+message Project {
+  option (labset.plugin.v1.message) = {
+    role: ROLE_ENTITY
+    operations: [OPERATION_CREATE]
+  };
+
+  labset.plugin.v1.Entity entity = 1; // id + lifecycle timestamps
+  string name = 2;
+}
 ```
 
 ## Contributing

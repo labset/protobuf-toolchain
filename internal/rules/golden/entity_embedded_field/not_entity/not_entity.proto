@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package example.v1;
+
+import "labset/plugin/v1/options.proto";
+
+// Reference is a ROLE_REFERENCE and Plain is unannotated. Neither is a
+// ROLE_ENTITY, so the embedded-field rule does not apply.
+message Reference {
+  option (labset.plugin.v1.message) = {
+    role: ROLE_REFERENCE
+  };
+
+  string id = 1;
+}
+
+message Plain {
+  string id = 1;
+}

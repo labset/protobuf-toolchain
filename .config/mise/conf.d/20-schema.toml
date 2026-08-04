@@ -7,7 +7,5 @@ run = "buf generate --template buf.gen.api.yaml"
 [tasks."schema:lint"]
 run = "buf lint"
 
-[tasks."schema:lint:fix"]
-run = [
-    "buf format --write"
-]
+[tasks."schema:format"]
+run = "buf format --write"
