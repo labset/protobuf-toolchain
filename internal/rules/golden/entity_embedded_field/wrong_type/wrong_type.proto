@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package example.v1;
+
+import "labset/plugin/v1/options.proto";
+
+// Gadget is a ROLE_ENTITY whose field number 1 is a scalar instead of Entity.
+message Gadget {
+  option (labset.plugin.v1.message) = {
+    role: ROLE_ENTITY
+    operations: [OPERATION_CREATE]
+  };
+
+  string id = 1;
+  string name = 2;
+}

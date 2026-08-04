@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package example.v1;
+
+import "labset/plugin/v1/options.proto";
+
+// Widget is a ROLE_ENTITY with no field number 1 at all.
+message Widget {
+  option (labset.plugin.v1.message) = {
+    role: ROLE_ENTITY
+    operations: [OPERATION_CREATE]
+  };
+
+  string name = 2;
+}

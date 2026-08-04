@@ -14,6 +14,10 @@ depends = ["schema:generate", "toolchain:generate"]
 description = "lint it"
 depends = ["schema:lint", "toolchain:lint"]
 
+[tasks.test]
+description = "test it"
+depends = ["toolchain:test"]
+
 [tasks.build]
 description = "build it"
 depends = ["toolchain:build"]

@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package example.v1;
+
+import "labset/plugin/v1/entity.proto";
+import "labset/plugin/v1/options.proto";
+
+// Batch is a ROLE_ENTITY whose field number 1 is a repeated Entity rather than a
+// singular one.
+message Batch {
+  option (labset.plugin.v1.message) = {
+    role: ROLE_ENTITY
+    operations: [OPERATION_LIST]
+  };
+
+  repeated labset.plugin.v1.Entity entity = 1;
+  string name = 2;
+}

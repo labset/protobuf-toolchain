@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package example.v1;
+
+import "labset/plugin/v1/options.proto";
+
+// A top-level entity annotation is where it belongs — no violation.
+message Project {
+  option (labset.plugin.v1.message) = {
+    role: ROLE_ENTITY
+    operations: [OPERATION_CREATE]
+  };
+
+  string id = 1;
+}

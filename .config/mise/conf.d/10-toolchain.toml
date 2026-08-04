@@ -13,5 +13,8 @@ run = [
     "go fmt ./..."
 ]
 
+[tasks."toolchain:test"]
+run = "go test ./..."
+
 [tasks."toolchain:build"]
 run = "goreleaser build --clean --snapshot"

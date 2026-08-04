@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package example.v1;
+
+import "labset/plugin/v1/options.proto";
+
+// Profile carries a labset annotation but is nested inside Account, so the
+// annotation is misplaced.
+message Account {
+  string id = 1;
+
+  message Profile {
+    option (labset.plugin.v1.message) = {
+      role: ROLE_ENTITY
+      operations: [OPERATION_READ]
+    };
+
+    string id = 1;
+  }
+}
