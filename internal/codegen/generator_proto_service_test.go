@@ -56,11 +56,11 @@ func TestProtoServiceGenerator(t *testing.T) {
 	}
 }
 
-// TestProtoServiceGeneratorNestedEntityRejected verifies an entity annotation on
-// a nested message is reported as an error — nested messages are not first-class
-// resources and cannot be referenced by an unqualified name from a generated
-// file, so they must not be silently skipped or emitted as invalid output.
-func TestProtoServiceGeneratorNestedEntityRejected(t *testing.T) {
+// TestProtoServiceGeneratorNestedEntitySkipped verifies an entity annotation on
+// a nested message generates nothing and does not fail: nested messages are not
+// first-class resources, and enforcing that placement is a lint concern rather
+// than a codegen failure.
+func TestProtoServiceGeneratorNestedEntitySkipped(t *testing.T) {
 	accountFile := &descriptorpb.FileDescriptorProto{
 		Name:       proto.String("nested/v1/account.proto"),
 		Package:    proto.String("nested.v1"),
@@ -80,8 +80,9 @@ func TestProtoServiceGeneratorNestedEntityRejected(t *testing.T) {
 		}},
 	}
 
-	_, err := generate(t, []string{"nested/v1/account.proto"}, accountFile)
-	require.ErrorContains(t, err, "nested.v1.Account.Profile")
+	plugin, err := generate(t, []string{"nested/v1/account.proto"}, accountFile)
+	require.NoError(t, err)
+	require.Empty(t, plugin.Response().GetFile())
 }
 
 // TestProtoServiceGeneratorDuplicatePath verifies distinct entities that resolve

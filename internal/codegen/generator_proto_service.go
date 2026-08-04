@@ -35,34 +35,14 @@ func (g *protoServiceGenerator) Generate(plugin *protogen.Plugin) error {
 			continue
 		}
 
+		// Only top-level messages model first-class resources. A nested message
+		// is scoped to its parent and cannot be referenced by an unqualified name
+		// from a generated file, so an entity annotation there is skipped —
+		// enforcing that placement is a lint concern, not a codegen failure.
 		for _, message := range file.Messages {
 			if err = g.generateForMessage(plugin, tmpl, file, message, seenPaths); err != nil {
 				return err
 			}
-			if err = ensureNoNestedEntities(message); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-// ensureNoNestedEntities rejects entity annotations on nested messages. Only
-// top-level messages model first-class resources; a nested message is scoped to
-// its parent and cannot be referenced by an unqualified name from a generated
-// file, so annotating one is a mistake worth surfacing rather than silently
-// skipping or emitting an invalid type reference.
-func ensureNoNestedEntities(message *protogen.Message) error {
-	for _, nested := range message.Messages {
-		if _, ok := entityOperations(nested); ok {
-			return fmt.Errorf(
-				"proto-service: nested message %s is annotated as an entity; only top-level messages are supported",
-				nested.Desc.FullName(),
-			)
-		}
-		if err := ensureNoNestedEntities(nested); err != nil {
-			return err
 		}
 	}
 
