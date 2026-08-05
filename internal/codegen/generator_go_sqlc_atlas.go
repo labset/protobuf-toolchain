@@ -26,6 +26,9 @@ type goSqlcAtlasGenerator struct {
 	// migration is the Atlas migration directory format (goose, flyway, ...);
 	// empty selects declarative schema management (atlas schema apply).
 	migration string
+	// schema overrides the Postgres schema the tables live under; empty derives
+	// it per package from the proto package name.
+	schema string
 }
 
 func (g *goSqlcAtlasGenerator) Generate(plugin *protogen.Plugin) error {
@@ -71,6 +74,7 @@ func (g *goSqlcAtlasGenerator) Generate(plugin *protogen.Plugin) error {
 					Source:       dir,
 					Package:      string(file.Desc.Package()),
 					GoPackage:    string(file.GoPackageName),
+					Schema:       g.schemaFor(file.Desc.Package()),
 					Migration:    g.migration,
 					goImportPath: file.GoImportPath,
 				}
@@ -88,6 +92,16 @@ func (g *goSqlcAtlasGenerator) Generate(plugin *protogen.Plugin) error {
 	}
 
 	return nil
+}
+
+// schemaFor returns the Postgres schema a directory's tables live under: the
+// explicit override when set, otherwise the proto package with dots replaced by
+// underscores (projectmanagement.v1 -> projectmanagement_v1).
+func (g *goSqlcAtlasGenerator) schemaFor(pkg protoreflect.FullName) string {
+	if g.schema != "" {
+		return g.schema
+	}
+	return strings.ReplaceAll(string(pkg), ".", "_")
 }
 
 // renderDir emits one output layer for a directory: sql/schema.sql (all
@@ -117,7 +131,7 @@ func renderDir(
 
 		out := plugin.NewGeneratedFile(filename, dm.goImportPath)
 		if err := tmpl.ExecuteTemplate(out, "query.sql.tmpl",
-			queryFileModel{Source: dm.Source, sqlEntity: entity}); err != nil {
+			queryFileModel{Source: dm.Source, Schema: dm.Schema, sqlEntity: entity}); err != nil {
 			return err
 		}
 	}
@@ -142,6 +156,7 @@ type dirModel struct {
 	Source    string // output directory, recorded in file headers
 	Package   string // proto package, e.g. projectmanagement.v1
 	GoPackage string // Go package name for generate.go
+	Schema    string // Postgres schema the tables live under
 	Migration string // "" (declarative) or an Atlas migration format
 	Entities  []sqlEntity
 
@@ -149,9 +164,10 @@ type dirModel struct {
 }
 
 // queryFileModel is the input for query.sql.tmpl: one entity's queries plus the
-// directory recorded in the file header.
+// schema they are qualified with and the directory recorded in the file header.
 type queryFileModel struct {
 	Source string
+	Schema string
 	sqlEntity
 }
 

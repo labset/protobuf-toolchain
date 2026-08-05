@@ -16,7 +16,7 @@ import (
 )
 
 func TestGoSqlcAtlasGenerator(t *testing.T) {
-	plugin, err := generateSqlc(t, "",
+	plugin, err := generateSqlc(t, "", "",
 		[]string{"projectmanagement/v1/project_management.proto"},
 		sqlcProjectManagementFileDescriptor(),
 	)
@@ -57,7 +57,7 @@ func TestGoSqlcAtlasGenerator(t *testing.T) {
 // config files switch to a versioned migrations directory, but the schema and
 // queries are unchanged, so only the config artifacts have their own goldens.
 func TestGoSqlcAtlasGeneratorVersioned(t *testing.T) {
-	plugin, err := generateSqlc(t, "goose",
+	plugin, err := generateSqlc(t, "goose", "",
 		[]string{"projectmanagement/v1/project_management.proto"},
 		sqlcProjectManagementFileDescriptor(),
 	)
@@ -71,6 +71,38 @@ func TestGoSqlcAtlasGeneratorVersioned(t *testing.T) {
 			continue
 		}
 		assertGolden(t, path.Join("go_sqlc_atlas", "versioned", base), file.GetContent())
+	}
+}
+
+// TestGoSqlcAtlasGeneratorSchema verifies tables are qualified with a Postgres
+// schema: derived from the proto package by default, or the explicit override.
+func TestGoSqlcAtlasGeneratorSchema(t *testing.T) {
+	tests := map[string]struct {
+		schema string
+		want   string
+	}{
+		"derived from package": {schema: "", want: "projectmanagement_v1"},
+		"explicit override":    {schema: "app", want: "app"},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			plugin, err := generateSqlc(t, "", tt.schema,
+				[]string{"projectmanagement/v1/project_management.proto"},
+				sqlcProjectManagementFileDescriptor(),
+			)
+			require.NoError(t, err)
+
+			byName := make(map[string]string)
+			for _, f := range plugin.Response().GetFile() {
+				byName[path.Base(f.GetName())] = f.GetContent()
+			}
+
+			assert.Contains(t, byName["schema.sql"], "CREATE SCHEMA IF NOT EXISTS "+tt.want+";")
+			assert.Contains(t, byName["schema.sql"], "CREATE TABLE "+tt.want+".project (")
+			assert.Contains(t, byName["project.sql"], "INSERT INTO "+tt.want+".project (")
+			assert.Contains(t, byName["atlas.hcl"], "search_path="+tt.want)
+		})
 	}
 }
 
@@ -117,7 +149,7 @@ func TestGoSqlcAtlasGeneratorSkips(t *testing.T) {
 				MessageType: []*descriptorpb.DescriptorProto{message},
 			}
 
-			plugin, err := generateSqlc(t, "", []string{"skip/v1/thing.proto"}, file)
+			plugin, err := generateSqlc(t, "", "", []string{"skip/v1/thing.proto"}, file)
 			require.NoError(t, err)
 			require.Empty(t, plugin.Response().GetFile())
 		})
@@ -145,7 +177,7 @@ func TestGoSqlcAtlasGeneratorEntityWithoutOperations(t *testing.T) {
 		},
 	}
 
-	plugin, err := generateSqlc(t, "", []string{"catalog/v1/catalog.proto"}, file)
+	plugin, err := generateSqlc(t, "", "", []string{"catalog/v1/catalog.proto"}, file)
 	require.NoError(t, err)
 
 	byName := make(map[string]string)
@@ -154,7 +186,7 @@ func TestGoSqlcAtlasGeneratorEntityWithoutOperations(t *testing.T) {
 	}
 
 	require.Contains(t, byName, "schema.sql")
-	assert.Contains(t, byName["schema.sql"], "CREATE TABLE tag")
+	assert.Contains(t, byName["schema.sql"], "CREATE TABLE catalog_v1.tag")
 	require.Contains(t, byName, "tag.sql")
 	assert.NotContains(t, byName["tag.sql"], "-- name:")
 }
@@ -167,11 +199,11 @@ func TestGoSqlcAtlasUnknownMigrationFormat(t *testing.T) {
 }
 
 // generateSqlc runs the go-sqlc-atlas generator (with the given migration
-// format) over the given files plus the well-known and labset descriptor
-// dependencies.
+// format and schema override) over the given files plus the well-known and
+// labset descriptor dependencies.
 func generateSqlc(
 	t *testing.T,
-	migration string,
+	migration, schema string,
 	toGenerate []string,
 	files ...*descriptorpb.FileDescriptorProto,
 ) (*protogen.Plugin, error) {
@@ -192,7 +224,7 @@ func generateSqlc(
 	})
 	require.NoError(t, err)
 
-	return plugin, (&goSqlcAtlasGenerator{migration: migration}).Generate(plugin)
+	return plugin, (&goSqlcAtlasGenerator{migration: migration, schema: schema}).Generate(plugin)
 }
 
 // sqlcProjectManagementFileDescriptor builds a project-management proto with a

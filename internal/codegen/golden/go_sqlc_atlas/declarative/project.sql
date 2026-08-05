@@ -2,27 +2,27 @@
 -- source: projectmanagement/v1
 
 -- name: CreateProject :one
-INSERT INTO project (id, name, description)
+INSERT INTO projectmanagement_v1.project (id, name, description)
 VALUES ($1, $2, $3)
 RETURNING *;
 
 -- name: GetProject :one
-SELECT * FROM project
+SELECT * FROM projectmanagement_v1.project
 WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: UpdateProject :one
-UPDATE project
+UPDATE projectmanagement_v1.project
 SET name = $2, description = $3, updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
 RETURNING *;
 
 -- name: DeleteProject :exec
-UPDATE project
+UPDATE projectmanagement_v1.project
 SET deleted_at = now()
 WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: ListProject :many
-SELECT * FROM project
+SELECT * FROM projectmanagement_v1.project
 WHERE deleted_at IS NULL
 ORDER BY created_at;
 

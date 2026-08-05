@@ -2,27 +2,27 @@
 -- source: {{ .Source }}
 {{ if has .Operations "CREATE" }}
 -- name: Create{{ .Entity }} :one
-INSERT INTO {{ .Table }} (id{{ range .Columns }}, {{ .Name }}{{ end }})
+INSERT INTO {{ .Schema }}.{{ .Table }} (id{{ range .Columns }}, {{ .Name }}{{ end }})
 VALUES ($1{{ range $i, $c := .Columns }}, ${{ add $i 2 }}{{ end }})
 RETURNING *;
 {{ end }}{{ if has .Operations "READ" }}
 -- name: Get{{ .Entity }} :one
-SELECT * FROM {{ .Table }}
+SELECT * FROM {{ .Schema }}.{{ .Table }}
 WHERE id = $1 AND deleted_at IS NULL;
 {{ end }}{{ if has .Operations "UPDATE" }}
 -- name: Update{{ .Entity }} :one
-UPDATE {{ .Table }}
+UPDATE {{ .Schema }}.{{ .Table }}
 SET {{ range $i, $c := .Columns }}{{ $c.Name }} = ${{ add $i 2 }}, {{ end }}updated_at = now()
 WHERE id = $1 AND deleted_at IS NULL
 RETURNING *;
 {{ end }}{{ if has .Operations "DELETE" }}
 -- name: Delete{{ .Entity }} :exec
-UPDATE {{ .Table }}
+UPDATE {{ .Schema }}.{{ .Table }}
 SET deleted_at = now()
 WHERE id = $1 AND deleted_at IS NULL;
 {{ end }}{{ if has .Operations "LIST" }}
 -- name: List{{ .Entity }} :many
-SELECT * FROM {{ .Table }}
+SELECT * FROM {{ .Schema }}.{{ .Table }}
 WHERE deleted_at IS NULL
 ORDER BY created_at;
 {{ end }}

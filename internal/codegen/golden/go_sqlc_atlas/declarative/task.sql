@@ -2,16 +2,16 @@
 -- source: projectmanagement/v1
 
 -- name: CreateTask :one
-INSERT INTO task (id, project_id, title, priority)
+INSERT INTO projectmanagement_v1.task (id, project_id, title, priority)
 VALUES ($1, $2, $3, $4)
 RETURNING *;
 
 -- name: GetTask :one
-SELECT * FROM task
+SELECT * FROM projectmanagement_v1.task
 WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: ListTask :many
-SELECT * FROM task
+SELECT * FROM projectmanagement_v1.task
 WHERE deleted_at IS NULL
 ORDER BY created_at;
 

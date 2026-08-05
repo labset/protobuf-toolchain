@@ -155,13 +155,18 @@ fields map by type (`string`→`text`, `int64`→`bigint`, `bool`→`boolean`,
 `Timestamp`→`timestamptz`; proto3 `optional` → nullable); message fields other
 than `Timestamp` (foreign keys) are skipped for now.
 
+Tables live under a dedicated Postgres schema (`CREATE SCHEMA IF NOT EXISTS ...`
+plus schema-qualified DDL and queries). It defaults to the proto package with
+dots replaced by underscores (`projectmanagement.v1` → `projectmanagement_v1`);
+override it with `schema=<name>`.
+
 By default Atlas manages the schema declaratively (`atlas schema apply` against
 `schema.sql`). Pass `migration=<format>` to switch to a versioned migrations
 directory instead — the value is the Atlas dir format (`goose`, `flyway`,
-`golang-migrate`, `dbmate`, `liquibase`, `atlas`):
+`golang-migrate`, `dbmate`, `liquibase`, `atlas`). Both parameters compose:
 
 ```yaml
-    opt: mode=go-sqlc-atlas,migration=goose
+    opt: mode=go-sqlc-atlas,schema=app,migration=goose
 ```
 
 ### lint rules

@@ -16,7 +16,7 @@ func GeneratorForMode(raw string) (Generator, error) {
 		if err := validateMigrationFormat(p.migration); err != nil {
 			return nil, err
 		}
-		return &goSqlcAtlasGenerator{migration: p.migration}, nil
+		return &goSqlcAtlasGenerator{migration: p.migration, schema: p.schema}, nil
 	default:
 		return nil, fmt.Errorf("unknown mode %q", p.mode)
 	}
@@ -29,6 +29,9 @@ type params struct {
 	// go-sqlc-atlas mode (goose, flyway, ...). Empty means declarative schema
 	// management (atlas schema apply) with no migrations directory.
 	migration string
+	// schema overrides the Postgres schema the go-sqlc-atlas tables live under.
+	// Empty derives it per package from the proto package name.
+	schema string
 }
 
 func parseParams(raw string) params {
@@ -45,6 +48,8 @@ func parseParams(raw string) params {
 			p.mode = strings.TrimSpace(value)
 		case "migration":
 			p.migration = strings.TrimSpace(value)
+		case "schema":
+			p.schema = strings.TrimSpace(value)
 		}
 	}
 

@@ -2,5 +2,5 @@
 env "local" {
   src = "file://sql/schema.sql"
   url = getenv("DATABASE_URL")
-  dev = "docker://postgres/16/dev?search_path=public"
+  dev = "docker://postgres/16/dev?search_path=projectmanagement_v1"
 }
