@@ -198,6 +198,104 @@ func TestGoSqlcAtlasUnknownMigrationFormat(t *testing.T) {
 	require.ErrorContains(t, err, "unknown migration format")
 }
 
+// TestGoSqlcAtlasGeneratorRealOneofNullable verifies a member of a real (non
+// -synthetic) oneof — which has presence but no optional keyword — maps to a
+// nullable column, since only one arm is ever set.
+func TestGoSqlcAtlasGeneratorRealOneofNullable(t *testing.T) {
+	msgOpts := &descriptorpb.MessageOptions{}
+	proto.SetExtension(msgOpts, pluginV1.E_Message, &pluginV1.MessageOptions{
+		Role:       pluginV1.Role_ROLE_ENTITY,
+		Operations: []pluginV1.Operation{pluginV1.Operation_OPERATION_CREATE},
+	})
+	contact := &descriptorpb.DescriptorProto{
+		Name: proto.String("Contact"),
+		Field: []*descriptorpb.FieldDescriptorProto{
+			embeddedEntityField(1),
+			oneofStringField("email", 2, 0),
+			oneofStringField("phone", 3, 0),
+		},
+		OneofDecl: []*descriptorpb.OneofDescriptorProto{{Name: proto.String("reach")}},
+		Options:   msgOpts,
+	}
+
+	file := &descriptorpb.FileDescriptorProto{
+		Name:       proto.String("directory/v1/directory.proto"),
+		Package:    proto.String("directory.v1"),
+		Syntax:     proto.String("proto3"),
+		Dependency: []string{"labset/plugin/v1/entity.proto", "labset/plugin/v1/options.proto"},
+		Options: &descriptorpb.FileOptions{
+			GoPackage: proto.String(
+				"github.com/labset/protobuf-toolchain/test/directory/v1;directoryv1",
+			),
+		},
+		MessageType: []*descriptorpb.DescriptorProto{contact},
+	}
+
+	plugin, err := generateSqlc(t, "", "", []string{"directory/v1/directory.proto"}, file)
+	require.NoError(t, err)
+
+	schema := generatedFile(t, plugin, "schema.sql")
+	assert.Contains(t, schema, "  email text,")
+	assert.Contains(t, schema, "  phone text,")
+	assert.NotContains(t, schema, "email text NOT NULL")
+}
+
+// TestGoSqlcAtlasGeneratorNoPackageSchemaFallback verifies a package-less proto
+// falls back to the "public" schema so the emitted SQL stays valid.
+func TestGoSqlcAtlasGeneratorNoPackageSchemaFallback(t *testing.T) {
+	file := &descriptorpb.FileDescriptorProto{
+		Name:       proto.String("nopkg/thing.proto"),
+		Syntax:     proto.String("proto3"),
+		Dependency: []string{"labset/plugin/v1/entity.proto", "labset/plugin/v1/options.proto"},
+		Options: &descriptorpb.FileOptions{
+			GoPackage: proto.String("github.com/labset/protobuf-toolchain/test/nopkg;nopkg"),
+		},
+		MessageType: []*descriptorpb.DescriptorProto{
+			sqlcEntityMessage("Thing", []*descriptorpb.FieldDescriptorProto{
+				embeddedEntityField(1),
+				stringField("label", 2),
+			}, pluginV1.Operation_OPERATION_CREATE),
+		},
+	}
+
+	plugin, err := generateSqlc(t, "", "", []string{"nopkg/thing.proto"}, file)
+	require.NoError(t, err)
+
+	schema := generatedFile(t, plugin, "schema.sql")
+	assert.Contains(t, schema, "CREATE SCHEMA IF NOT EXISTS public;")
+	assert.Contains(t, schema, "CREATE TABLE public.thing (")
+}
+
+// TestGoSqlcAtlasGeneratorMixedPackagesInDir verifies two proto packages sharing
+// one output directory is an error rather than a silently mis-qualified schema.
+func TestGoSqlcAtlasGeneratorMixedPackagesInDir(t *testing.T) {
+	mk := func(name, pkg, message string) *descriptorpb.FileDescriptorProto {
+		return &descriptorpb.FileDescriptorProto{
+			Name:       proto.String(name),
+			Package:    proto.String(pkg),
+			Syntax:     proto.String("proto3"),
+			Dependency: []string{"labset/plugin/v1/entity.proto", "labset/plugin/v1/options.proto"},
+			Options: &descriptorpb.FileOptions{
+				GoPackage: proto.String(
+					"github.com/labset/protobuf-toolchain/test/shared/v1;sharedv1",
+				),
+			},
+			MessageType: []*descriptorpb.DescriptorProto{
+				sqlcEntityMessage(message, []*descriptorpb.FieldDescriptorProto{
+					embeddedEntityField(1),
+				}, pluginV1.Operation_OPERATION_CREATE),
+			},
+		}
+	}
+
+	_, err := generateSqlc(t, "", "",
+		[]string{"shared/v1/a.proto", "shared/v1/b.proto"},
+		mk("shared/v1/a.proto", "shared.v1", "Alpha"),
+		mk("shared/v1/b.proto", "other.v1", "Beta"),
+	)
+	require.ErrorContains(t, err, "two proto packages")
+}
+
 // generateSqlc runs the go-sqlc-atlas generator (with the given migration
 // format and schema override) over the given files plus the well-known and
 // labset descriptor dependencies.
@@ -310,6 +408,27 @@ func embeddedEntityField(number int32) *descriptorpb.FieldDescriptorProto {
 		Type:     descriptorpb.FieldDescriptorProto_TYPE_MESSAGE.Enum(),
 		TypeName: proto.String(".labset.plugin.v1.Entity"),
 	}
+}
+
+// oneofStringField builds a string field that is a member of the real oneof at
+// the given declaration index (presence without the proto3 optional keyword).
+func oneofStringField(name string, number, oneofIndex int32) *descriptorpb.FieldDescriptorProto {
+	field := stringField(name, number)
+	field.OneofIndex = proto.Int32(oneofIndex)
+	return field
+}
+
+// generatedFile returns the content of the emitted file with the given base name.
+func generatedFile(t *testing.T, plugin *protogen.Plugin, base string) string {
+	t.Helper()
+
+	for _, f := range plugin.Response().GetFile() {
+		if path.Base(f.GetName()) == base {
+			return f.GetContent()
+		}
+	}
+	require.Failf(t, "missing generated file", "no file named %q", base)
+	return ""
 }
 
 // optionalInt64Field builds a proto3 optional int64 field (a nullable column).

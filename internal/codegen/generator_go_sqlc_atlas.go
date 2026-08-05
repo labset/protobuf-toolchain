@@ -10,9 +10,7 @@ import (
 	pluginV1 "github.com/labset/protobuf-toolchain/api/labset/plugin/v1"
 	"github.com/labset/protobuf-toolchain/internal/helpers"
 	"google.golang.org/protobuf/compiler/protogen"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 //go:embed templates/go-sqlc-atlas/*.tmpl
@@ -68,11 +66,12 @@ func (g *goSqlcAtlasGenerator) Generate(plugin *protogen.Plugin) error {
 				continue
 			}
 
+			pkg := string(file.Desc.Package())
 			dm := dirs[dir]
 			if dm == nil {
 				dm = &dirModel{
 					Source:       dir,
-					Package:      string(file.Desc.Package()),
+					Package:      pkg,
 					GoPackage:    string(file.GoPackageName),
 					Schema:       g.schemaFor(file.Desc.Package()),
 					Migration:    g.migration,
@@ -80,6 +79,16 @@ func (g *goSqlcAtlasGenerator) Generate(plugin *protogen.Plugin) error {
 				}
 				dirs[dir] = dm
 				order = append(order, dir)
+			} else if dm.Package != pkg {
+				// The per-directory config (one schema, one sqlc.yaml/atlas.hcl)
+				// cannot represent two proto packages sharing a directory; error
+				// rather than silently qualify one package's tables with the
+				// other's schema. buf's PACKAGE_DIRECTORY_MATCH normally prevents
+				// this.
+				return fmt.Errorf(
+					"go-sqlc-atlas: directory %q holds two proto packages %q and %q",
+					dir, dm.Package, pkg,
+				)
 			}
 			dm.Entities = append(dm.Entities, buildEntity(message, opts))
 		}
@@ -96,10 +105,14 @@ func (g *goSqlcAtlasGenerator) Generate(plugin *protogen.Plugin) error {
 
 // schemaFor returns the Postgres schema a directory's tables live under: the
 // explicit override when set, otherwise the proto package with dots replaced by
-// underscores (projectmanagement.v1 -> projectmanagement_v1).
+// underscores (projectmanagement.v1 -> projectmanagement_v1). A package-less
+// file falls back to "public" so the emitted SQL stays valid.
 func (g *goSqlcAtlasGenerator) schemaFor(pkg protoreflect.FullName) string {
 	if g.schema != "" {
 		return g.schema
+	}
+	if pkg == "" {
+		return "public"
 	}
 	return strings.ReplaceAll(string(pkg), ".", "_")
 }
@@ -203,13 +216,8 @@ func buildEntity(message *protogen.Message, opts *pluginV1.MessageOptions) sqlEn
 		}
 	}
 
-	seen := make(map[pluginV1.Operation]bool)
-	for _, op := range opts.GetOperations() {
-		if op == pluginV1.Operation_OPERATION_UNSPECIFIED || seen[op] {
-			continue
-		}
-		seen[op] = true
-		ent.Operations = append(ent.Operations, strings.TrimPrefix(op.String(), "OPERATION_"))
+	for _, op := range distinctOperations(opts) {
+		ent.Operations = append(ent.Operations, operationName(op))
 	}
 
 	return ent
@@ -233,12 +241,21 @@ func columnFor(field *protogen.Field) (sqlColumn, bool) {
 		return sqlColumn{}, false
 	}
 
+	// The embedded Entity base contributes the fixed columns the template owns,
+	// so it is never a column of its own — skip it explicitly rather than relying
+	// on the non-Timestamp message fall-through below.
+	if field.Message != nil && string(field.Message.Desc.FullName()) == entityBaseFullName {
+		return sqlColumn{}, false
+	}
+
 	name := helpers.ToSnake(string(field.Desc.Name()))
 	if reservedColumns[name] {
 		return sqlColumn{}, false
 	}
 
-	nullable := field.Desc.HasOptionalKeyword()
+	// A field carries a NULL-able column when it has explicit presence: proto3
+	// optional, a message type, or a member of a (real or synthetic) oneof.
+	nullable := field.Desc.HasPresence()
 
 	var sqlType string
 	switch field.Desc.Kind() {
@@ -260,25 +277,9 @@ func columnFor(field *protogen.Field) (sqlColumn, bool) {
 			return sqlColumn{}, false
 		}
 		sqlType = "timestamptz"
-		nullable = true
 	default:
 		return sqlColumn{}, false
 	}
 
 	return sqlColumn{Name: name, SQLType: sqlType, Nullable: nullable}, true
-}
-
-// entityMessageOptions returns the labset.plugin.v1.MessageOptions annotation on
-// a message, or nil when it carries none.
-func entityMessageOptions(message *protogen.Message) *pluginV1.MessageOptions {
-	opts, ok := message.Desc.Options().(*descriptorpb.MessageOptions)
-	if !ok || opts == nil {
-		return nil
-	}
-	if !proto.HasExtension(opts, pluginV1.E_Message) {
-		return nil
-	}
-
-	msgOpts, _ := proto.GetExtension(opts, pluginV1.E_Message).(*pluginV1.MessageOptions)
-	return msgOpts
 }

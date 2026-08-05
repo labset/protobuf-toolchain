@@ -10,8 +10,6 @@ import (
 	pluginV1 "github.com/labset/protobuf-toolchain/api/labset/plugin/v1"
 	"github.com/labset/protobuf-toolchain/internal/helpers"
 	"google.golang.org/protobuf/compiler/protogen"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 //go:embed templates/proto-service/*.tmpl
@@ -72,7 +70,7 @@ func (g *protoServiceGenerator) generateForMessage(
 
 	service := serviceModel{entityData: data}
 	for _, op := range operations {
-		name := strings.TrimPrefix(op.String(), "OPERATION_")
+		name := operationName(op)
 		filename := path.Join(dir, "rpc_"+strings.ToLower(name)+"_"+data.EntityField+".proto")
 
 		out, err := newGeneratedFile(plugin, seenPaths, filename, entity, file.GoImportPath)
@@ -147,31 +145,11 @@ type serviceModel struct {
 // duplicates are dropped, so a message that requests no real operation is not
 // generatable.
 func entityOperations(message *protogen.Message) ([]pluginV1.Operation, bool) {
-	opts, ok := message.Desc.Options().(*descriptorpb.MessageOptions)
-	if !ok || opts == nil {
-		return nil, false
-	}
-	if !proto.HasExtension(opts, pluginV1.E_Message) {
+	opts := entityMessageOptions(message)
+	if opts == nil || opts.GetRole() != pluginV1.Role_ROLE_ENTITY {
 		return nil, false
 	}
 
-	msgOpts, ok := proto.GetExtension(opts, pluginV1.E_Message).(*pluginV1.MessageOptions)
-	if !ok || msgOpts == nil {
-		return nil, false
-	}
-	if msgOpts.GetRole() != pluginV1.Role_ROLE_ENTITY {
-		return nil, false
-	}
-
-	seen := make(map[pluginV1.Operation]bool)
-	var operations []pluginV1.Operation
-	for _, op := range msgOpts.GetOperations() {
-		if op == pluginV1.Operation_OPERATION_UNSPECIFIED || seen[op] {
-			continue
-		}
-		seen[op] = true
-		operations = append(operations, op)
-	}
-
+	operations := distinctOperations(opts)
 	return operations, len(operations) > 0
 }
