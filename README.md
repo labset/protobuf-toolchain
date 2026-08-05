@@ -119,6 +119,48 @@ deps:
 buf dep update
 ```
 
+#### `mode=go-sqlc-atlas`
+
+Turns every `ROLE_ENTITY` message into a Postgres backend layer: a schema, sqlc
+CRUD queries, and the sqlc/Atlas config plus a `generate.go` that drives them.
+Entities sharing an output directory are aggregated into one schema and query
+file plus one config set.
+
+```yaml
+# buf.gen.yaml
+plugins:
+  - local: protoc-gen-labset
+    out: gen
+    opt: mode=go-sqlc-atlas
+```
+
+For the `Project` entity above it emits, per package directory:
+
+```
+gen/projectmanagement/v1/schema.sql    # CREATE TABLE project (id uuid PK, ..., soft delete)
+gen/projectmanagement/v1/query.sql     # sqlc CRUD queries, one per operation
+gen/projectmanagement/v1/sqlc.yaml     # engine postgresql, pgx/v5, gofrs/uuid overrides
+gen/projectmanagement/v1/atlas.hcl     # local env (dev docker db + DATABASE_URL)
+gen/projectmanagement/v1/generate.go   # //go:generate atlas + sqlc
+```
+
+Conventions: table and column names are singular `snake_case`; the embedded
+`Entity` contributes `id uuid PRIMARY KEY` (application-generated) plus
+`created_at` / `updated_at` (default `now()`) and a nullable `deleted_at`;
+`DELETE` is a soft delete and reads carry `WHERE deleted_at IS NULL`. Scalar
+fields map by type (`string`→`text`, `int64`→`bigint`, `bool`→`boolean`,
+`Timestamp`→`timestamptz`; proto3 `optional` → nullable); message fields other
+than `Timestamp` (foreign keys) are skipped for now.
+
+By default Atlas manages the schema declaratively (`atlas schema apply` against
+`schema.sql`). Pass `migration=<format>` to switch to a versioned migrations
+directory instead — the value is the Atlas dir format (`goose`, `flyway`,
+`golang-migrate`, `dbmate`, `liquibase`, `atlas`):
+
+```yaml
+    opt: mode=go-sqlc-atlas,migration=goose
+```
+
 ### lint rules
 
 `labset-lint-plugin` contributes rules that keep entity annotations well-formed.
