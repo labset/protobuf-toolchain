@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"embed"
+	"fmt"
 	"path"
 	"strings"
 	"text/template"
@@ -89,24 +90,46 @@ func (g *goSqlcAtlasGenerator) Generate(plugin *protogen.Plugin) error {
 	return nil
 }
 
-// renderDir emits the five per-directory artifacts for one output directory.
+// renderDir emits one output layer for a directory: sql/schema.sql (all
+// entities), sql/queries/<table>.sql (one per entity), and the sqlc/atlas
+// config plus generate.go at the directory root.
 func renderDir(
 	plugin *protogen.Plugin,
 	tmpl *template.Template,
 	dir string,
 	dm *dirModel,
 ) error {
-	artifacts := []struct{ filename, template string }{
-		{"schema.sql", "schema.sql.tmpl"},
-		{"query.sql", "query.sql.tmpl"},
+	schema := plugin.NewGeneratedFile(path.Join(dir, "sql", "schema.sql"), dm.goImportPath)
+	if err := tmpl.ExecuteTemplate(schema, "schema.sql.tmpl", dm); err != nil {
+		return err
+	}
+
+	seen := make(map[string]string)
+	for _, entity := range dm.Entities {
+		filename := path.Join(dir, "sql", "queries", entity.Table+".sql")
+		if prev, ok := seen[filename]; ok {
+			return fmt.Errorf(
+				"go-sqlc-atlas: entities %q and %q both generate %q",
+				prev, entity.Entity, filename,
+			)
+		}
+		seen[filename] = entity.Entity
+
+		out := plugin.NewGeneratedFile(filename, dm.goImportPath)
+		if err := tmpl.ExecuteTemplate(out, "query.sql.tmpl",
+			queryFileModel{Source: dm.Source, sqlEntity: entity}); err != nil {
+			return err
+		}
+	}
+
+	configs := []struct{ filename, template string }{
 		{"sqlc.yaml", "sqlc.yaml.tmpl"},
 		{"atlas.hcl", "atlas.hcl.tmpl"},
 		{"generate.go", "generate.go.tmpl"},
 	}
-
-	for _, a := range artifacts {
-		out := plugin.NewGeneratedFile(path.Join(dir, a.filename), dm.goImportPath)
-		if err := tmpl.ExecuteTemplate(out, a.template, dm); err != nil {
+	for _, c := range configs {
+		out := plugin.NewGeneratedFile(path.Join(dir, c.filename), dm.goImportPath)
+		if err := tmpl.ExecuteTemplate(out, c.template, dm); err != nil {
 			return err
 		}
 	}
@@ -123,6 +146,13 @@ type dirModel struct {
 	Entities  []sqlEntity
 
 	goImportPath protogen.GoImportPath
+}
+
+// queryFileModel is the input for query.sql.tmpl: one entity's queries plus the
+// directory recorded in the file header.
+type queryFileModel struct {
+	Source string
+	sqlEntity
 }
 
 // sqlEntity is a single table and its CRUD queries.

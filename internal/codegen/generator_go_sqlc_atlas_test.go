@@ -25,11 +25,13 @@ func TestGoSqlcAtlasGenerator(t *testing.T) {
 	resp := plugin.Response()
 	require.Empty(t, resp.GetError())
 
-	// Two entities in one package aggregate into a single per-directory set:
-	// one schema.sql and query.sql covering both, plus the shared config files.
+	// Two entities in one package share a directory: one sql/schema.sql covers
+	// both, each gets its own sql/queries/<table>.sql, and the config files sit
+	// at the directory root.
 	wantNames := []string{
-		"projectmanagement/v1/schema.sql",
-		"projectmanagement/v1/query.sql",
+		"projectmanagement/v1/sql/schema.sql",
+		"projectmanagement/v1/sql/queries/project.sql",
+		"projectmanagement/v1/sql/queries/task.sql",
 		"projectmanagement/v1/sqlc.yaml",
 		"projectmanagement/v1/atlas.hcl",
 		"projectmanagement/v1/generate.go",
@@ -153,7 +155,8 @@ func TestGoSqlcAtlasGeneratorEntityWithoutOperations(t *testing.T) {
 
 	require.Contains(t, byName, "schema.sql")
 	assert.Contains(t, byName["schema.sql"], "CREATE TABLE tag")
-	assert.NotContains(t, byName["query.sql"], "-- name:")
+	require.Contains(t, byName, "tag.sql")
+	assert.NotContains(t, byName["tag.sql"], "-- name:")
 }
 
 // TestGoSqlcAtlasUnknownMigrationFormat verifies the mode rejects an unsupported

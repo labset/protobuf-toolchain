@@ -2,8 +2,8 @@
 version: "2"
 sql:
   - engine: "postgresql"
-    schema: "{{ if .Migration }}migrations{{ else }}schema.sql{{ end }}"
-    queries: "query.sql"
+    schema: "{{ if .Migration }}sql/migrations{{ else }}sql/schema.sql{{ end }}"
+    queries: "sql/queries"
     gen:
       go:
         package: "db"

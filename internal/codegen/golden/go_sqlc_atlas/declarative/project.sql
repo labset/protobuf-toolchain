@@ -26,16 +26,3 @@ SELECT * FROM project
 WHERE deleted_at IS NULL
 ORDER BY created_at;
 
--- name: CreateTask :one
-INSERT INTO task (id, project_id, title, priority)
-VALUES ($1, $2, $3, $4)
-RETURNING *;
-
--- name: GetTask :one
-SELECT * FROM task
-WHERE id = $1 AND deleted_at IS NULL;
-
--- name: ListTask :many
-SELECT * FROM task
-WHERE deleted_at IS NULL
-ORDER BY created_at;

@@ -137,12 +137,15 @@ plugins:
 For the `Project` entity above it emits, per package directory:
 
 ```
-gen/projectmanagement/v1/schema.sql    # CREATE TABLE project (id uuid PK, ..., soft delete)
-gen/projectmanagement/v1/query.sql     # sqlc CRUD queries, one per operation
-gen/projectmanagement/v1/sqlc.yaml     # engine postgresql, pgx/v5, gofrs/uuid overrides
-gen/projectmanagement/v1/atlas.hcl     # local env (dev docker db + DATABASE_URL)
-gen/projectmanagement/v1/generate.go   # //go:generate atlas + sqlc
+gen/projectmanagement/v1/sql/schema.sql          # CREATE TABLE project (id uuid PK, ..., soft delete)
+gen/projectmanagement/v1/sql/queries/project.sql # sqlc CRUD queries, one file per entity
+gen/projectmanagement/v1/sqlc.yaml               # engine postgresql, pgx/v5, gofrs/uuid overrides
+gen/projectmanagement/v1/atlas.hcl               # local env (dev docker db + DATABASE_URL)
+gen/projectmanagement/v1/generate.go             # //go:generate atlas + sqlc
 ```
+
+The schema aggregates every entity in the directory; each entity gets its own
+`sql/queries/<table>.sql`.
 
 Conventions: table and column names are singular `snake_case`; the embedded
 `Entity` contributes `id uuid PRIMARY KEY` (application-generated) plus
