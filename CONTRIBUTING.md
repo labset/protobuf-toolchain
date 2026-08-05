@@ -124,16 +124,8 @@ mise run clean
 ## releasing
 
 Releases are cut by [GoReleaser](https://goreleaser.com/) from the `release` workflow, which
-triggers when a GitHub release is created. It builds the binaries, publishes the archives to the
-release, and pushes a Homebrew cask to the tap.
-
-**One-time setup** (required before the first release publishes the Homebrew tap):
-
-1. Create the tap repository `labset/homebrew-tap` (an empty repo is fine). GoReleaser commits the
-   generated cask into it.
-2. Add a `HOMEBREW_TAP_GITHUB_TOKEN` repository secret, a GitHub personal access token with
-   `contents: write` permission on `labset/homebrew-tap`. The default `GITHUB_TOKEN` cannot push to
-   another repository, so this separate token is required.
+triggers when a GitHub release is created. It builds the binaries and publishes the archives to the
+release. Consumers install the binaries via `go install` or mise (see the README).
 
 **Cutting a release:**
 
