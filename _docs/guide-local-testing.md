@@ -15,8 +15,10 @@ drops the binaries in `GOBIN`, which mise already keeps on `PATH`:
 mise exec -- go install ./cmd/protoc-gen-labset ./cmd/labset-lint-plugin
 ```
 
-This overwrites whatever `go install ...@latest` or mise put there, so the next
-`buf` run picks up your changes. Confirm the binaries resolve:
+This lands the working-tree binaries in the mise Go toolchain's `GOBIN`, so the
+next `buf` run picks up your changes. Confirm they resolve there and not to some
+other copy on `PATH` — if you previously installed via `mise use "go:..."`, that
+binary lives in a separate mise dir, so check which one wins:
 
 ```bash
 which protoc-gen-labset labset-lint-plugin
@@ -28,11 +30,11 @@ which protoc-gen-labset labset-lint-plugin
 ## point a project at it
 
 In the target project, wire the plugins exactly as a consumer would (see the
-[README](../README.md)). Nothing here is local-only — it's the same config a
-released install uses:
+[README](../README.md)) — codegen in `buf.gen.yaml`, lint in `buf.yaml`. Nothing
+here is local-only; it's the same config a released install uses:
 
 ```yaml
-# buf.gen.yaml
+# buf.gen.yaml (target project)
 version: v2
 plugins:
   - local: protoc-gen-labset
@@ -41,8 +43,10 @@ plugins:
 ```
 
 ```yaml
-# buf.yaml
+# buf.yaml (target project)
 version: v2
+modules:
+  - path: proto   # the project's own protos
 plugins:
   - plugin: labset-lint-plugin
 lint:
@@ -53,26 +57,17 @@ lint:
 The project's entities need the `(labset.plugin.v1.message)` annotation and the
 embedded `labset.plugin.v1.Entity`, which come from this module's
 `protos/labset/plugin/v1` (`options.proto`, `entity.proto`, `enums.proto`).
-This module isn't published to a registry yet, so make those protos importable
-in the target project either by vendoring them into its proto tree or by adding
-the checkout's `protos` directory as a second module in a buf workspace:
-
-```yaml
-# buf.yaml (target project)
-version: v2
-modules:
-  - path: proto                                  # the project's own protos
-  - path: ../protobuf-toolchain/protos           # labset/plugin/v1 annotations
-```
-
-so that `import "labset/plugin/v1/options.proto";` resolves.
+This module isn't published to a registry yet, and a buf v2 workspace can't
+reference protos outside its root, so vendor those three files into the target
+project — copy them under `proto/labset/plugin/v1/` so that
+`import "labset/plugin/v1/options.proto";` resolves within the project's module.
 
 ## generate and inspect
 
 ```bash
-buf lint                              # exercises labset-lint-plugin
-buf generate                          # runs protoc-gen-labset
-buf generate --template buf.gen.yaml  # if the project keeps several templates
+buf lint                                     # exercises labset-lint-plugin
+buf generate                                 # runs protoc-gen-labset (default buf.gen.yaml)
+buf generate --template buf.gen.labset.yaml  # if you keep the toolchain template separate
 ```
 
 Then read the emitted tree (`gen/...`) and check it against the mode's
@@ -106,8 +101,8 @@ When you're done, replace the working-tree binaries with a published version so
 the project isn't left on an unreleased build:
 
 ```bash
-go install github.com/labset/protobuf-toolchain/cmd/protoc-gen-labset@latest
-go install github.com/labset/protobuf-toolchain/cmd/labset-lint-plugin@latest
+mise exec -- go install github.com/labset/protobuf-toolchain/cmd/protoc-gen-labset@latest
+mise exec -- go install github.com/labset/protobuf-toolchain/cmd/labset-lint-plugin@latest
 # or, if pinned via mise in the project
 mise install
 ```
