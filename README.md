@@ -86,8 +86,8 @@ message Project {
 
 | `mode` | generates | docs |
 | --- | --- | --- |
-| `proto-service` | a CRUD service split across proto files, per annotated entity | [read the docs](_docs/proto-service.md) |
-| `go-sqlc-atlas` | a Postgres schema, sqlc queries and the sqlc/Atlas config, per annotated entity | [read the docs](_docs/go-sqlc-atlas.md) |
+| `proto-service` | a CRUD service split across proto files, per annotated entity | [read the docs](_docs/mode-proto-service.md) |
+| `go-sqlc-atlas` | a Postgres schema, sqlc queries and the sqlc/Atlas config, per annotated entity | [read the docs](_docs/mode-go-sqlc-atlas.md) |
 
 ## lint rules
 
@@ -117,4 +117,4 @@ message Project {
 ## contributing
 
 Local setup, project layout, how to add a generator or lint rule, and the release
-process live in [CONTRIBUTING.md](CONTRIBUTING.md).
+process live in the [contributing guide](CONTRIBUTING.md).
