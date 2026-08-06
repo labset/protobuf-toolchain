@@ -31,24 +31,47 @@ type goSqlcAtlasGenerator struct {
 }
 
 func (g *goSqlcAtlasGenerator) Generate(plugin *protogen.Plugin) error {
-	tmpl, err := template.New("").Funcs(template.FuncMap{
-		"has": func(ops []string, op string) bool {
-			for _, o := range ops {
-				if o == op {
-					return true
-				}
-			}
-			return false
-		},
-	}).ParseFS(goSqlcAtlasTemplateFS, "templates/go-sqlc-atlas/*.tmpl")
+	tmpl, err := parseTemplates()
 	if err != nil {
 		return err
 	}
 
-	// Entities are grouped by output directory: schema.sql, query.sql and the
-	// config files are per-directory artifacts, so every entity in a directory
-	// contributes to one shared set. order preserves first-seen directory order
-	// for deterministic output.
+	dirs, order, err := g.collectDirs(plugin)
+	if err != nil {
+		return err
+	}
+
+	for _, dir := range order {
+		if err = renderDir(plugin, tmpl, dir, dirs[dir]); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func parseTemplates() (*template.Template, error) {
+	return template.New("").
+		Funcs(template.FuncMap{"has": hasOperation}).
+		ParseFS(goSqlcAtlasTemplateFS, "templates/go-sqlc-atlas/*.tmpl")
+}
+
+func hasOperation(ops []string, op string) bool {
+	for _, o := range ops {
+		if o == op {
+			return true
+		}
+	}
+	return false
+}
+
+// collectDirs groups every ROLE_ENTITY message by output directory: schema.sql,
+// the query files and the config files are per-directory artifacts, so every
+// entity in a directory contributes to one shared set. order preserves
+// first-seen directory order for deterministic output.
+func (g *goSqlcAtlasGenerator) collectDirs(
+	plugin *protogen.Plugin,
+) (map[string]*dirModel, []string, error) {
 	dirs := make(map[string]*dirModel)
 	var order []string
 
@@ -66,41 +89,52 @@ func (g *goSqlcAtlasGenerator) Generate(plugin *protogen.Plugin) error {
 				continue
 			}
 
-			pkg := string(file.Desc.Package())
-			dm := dirs[dir]
-			if dm == nil {
-				dm = &dirModel{
-					Source:       dir,
-					Package:      pkg,
-					GoPackage:    string(file.GoPackageName),
-					Schema:       g.schemaFor(file.Desc.Package()),
-					Migration:    g.migration,
-					goImportPath: file.GoImportPath,
-				}
-				dirs[dir] = dm
+			dm, created, err := g.dirModelFor(dirs, dir, file)
+			if err != nil {
+				return nil, nil, err
+			}
+			if created {
 				order = append(order, dir)
-			} else if dm.Package != pkg {
-				// The per-directory config (one schema, one sqlc.yaml/atlas.hcl)
-				// cannot represent two proto packages sharing a directory; error
-				// rather than silently qualify one package's tables with the
-				// other's schema. buf's PACKAGE_DIRECTORY_MATCH normally prevents
-				// this.
-				return fmt.Errorf(
-					"go-sqlc-atlas: directory %q holds two proto packages %q and %q",
-					dir, dm.Package, pkg,
-				)
 			}
 			dm.Entities = append(dm.Entities, buildEntity(message, opts))
 		}
 	}
 
-	for _, dir := range order {
-		if err = renderDir(plugin, tmpl, dir, dirs[dir]); err != nil {
-			return err
+	return dirs, order, nil
+}
+
+// dirModelFor returns the model for a directory, creating it on first sight
+// (reporting created=true). It errors when a second proto package lands in the
+// same directory: the per-directory config (one schema, one sqlc.yaml/atlas.hcl)
+// cannot represent two packages, so qualifying one package's tables with the
+// other's schema would be silently wrong. buf's PACKAGE_DIRECTORY_MATCH normally
+// prevents this.
+func (g *goSqlcAtlasGenerator) dirModelFor(
+	dirs map[string]*dirModel,
+	dir string,
+	file *protogen.File,
+) (*dirModel, bool, error) {
+	pkg := string(file.Desc.Package())
+	if dm := dirs[dir]; dm != nil {
+		if dm.Package != pkg {
+			return nil, false, fmt.Errorf(
+				"go-sqlc-atlas: directory %q holds two proto packages %q and %q",
+				dir, dm.Package, pkg,
+			)
 		}
+		return dm, false, nil
 	}
 
-	return nil
+	dm := &dirModel{
+		Source:       dir,
+		Package:      pkg,
+		GoPackage:    string(file.GoPackageName),
+		Schema:       g.schemaFor(file.Desc.Package()),
+		Migration:    g.migration,
+		goImportPath: file.GoImportPath,
+	}
+	dirs[dir] = dm
+	return dm, true, nil
 }
 
 // schemaFor returns the Postgres schema a directory's tables live under: the
