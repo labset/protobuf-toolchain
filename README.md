@@ -1,4 +1,4 @@
-## protobuf-toolchain
+# protobuf-toolchain
 
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=labset_protobuf-toolchain&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=labset_protobuf-toolchain)
 
@@ -10,7 +10,7 @@ plugins:
 - **`labset-lint-plugin`** — a [`bufplugin`](https://buf.build/docs/cli/buf-plugins/)
   check plugin that contributes custom lint rules to `buf lint`.
 
-### usage
+## usage
 
 - install with `go install`
 
@@ -34,7 +34,7 @@ or pin them in a project's `mise.toml`:
 "go:github.com/labset/protobuf-toolchain/cmd/labset-lint-plugin" = "latest"
 ```
 
-### wiring the plugins into buf
+## wiring the plugins into buf
 
 - codegen with `protoc-gen-labset`, selecting a generator with the `mode` option:
 
@@ -59,11 +59,11 @@ lint:
     - STANDARD
 ```
 
-### generators
+## generators
 
-`protoc-gen-labset` hosts several generators behind the `mode` option. Both
-`proto-service` and `go-sqlc-atlas` read the same `(labset.plugin.v1.message)`
-annotation — a `role` plus the CRUD `operations` to expose:
+`protoc-gen-labset` hosts several generators behind the `mode` option. Most are
+driven by the `(labset.plugin.v1.message)` annotation — a `role` plus the CRUD
+`operations` to expose:
 
 ```protobuf
 // projectmanagement/v1/project.proto
@@ -87,10 +87,10 @@ message Project {
 | `mode` | generates | docs |
 | --- | --- | --- |
 | `echo` | logs the files it would generate — a wiring smoke test | — |
-| `proto-service` | a CRUD service split across proto files, per annotated entity | [`_docs/proto-service.md`](_docs/proto-service.md) |
-| `go-sqlc-atlas` | a Postgres schema, sqlc queries and the sqlc/Atlas config, per annotated entity | [`_docs/go-sqlc-atlas.md`](_docs/go-sqlc-atlas.md) |
+| `proto-service` | a CRUD service split across proto files, per annotated entity | [read the docs](_docs/proto-service.md) |
+| `go-sqlc-atlas` | a Postgres schema, sqlc queries and the sqlc/Atlas config, per annotated entity | [read the docs](_docs/go-sqlc-atlas.md) |
 
-### lint rules
+## lint rules
 
 `labset-lint-plugin` contributes rules that keep entity annotations well-formed.
 They are on by default once the plugin is wired into `buf.yaml`:
@@ -115,7 +115,7 @@ message Project {
 }
 ```
 
-## Contributing
+## contributing
 
 Local setup, project layout, how to add a generator or lint rule, and the release
 process live in [CONTRIBUTING.md](CONTRIBUTING.md).
