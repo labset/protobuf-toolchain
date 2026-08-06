@@ -8,10 +8,9 @@ import (
 	"text/template"
 
 	pluginV1 "github.com/labset/protobuf-toolchain/api/labset/plugin/v1"
+	"github.com/labset/protobuf-toolchain/internal/entity"
 	"github.com/labset/protobuf-toolchain/internal/helpers"
 	"google.golang.org/protobuf/compiler/protogen"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 //go:embed templates/proto-service/*.tmpl
@@ -61,21 +60,21 @@ func (g *protoServiceGenerator) generateForMessage(
 		return nil
 	}
 
-	entity := string(message.Desc.Name())
+	entityName := string(message.Desc.Name())
 	data := entityData{
 		Package:     string(file.Desc.Package()),
 		Source:      file.Desc.Path(),
-		Entity:      entity,
-		EntityField: helpers.ToSnake(entity),
+		Entity:      entityName,
+		EntityField: helpers.ToSnake(entityName),
 	}
 	dir := path.Dir(data.Source)
 
 	service := serviceModel{entityData: data}
 	for _, op := range operations {
-		name := strings.TrimPrefix(op.String(), "OPERATION_")
+		name := entity.OperationName(op)
 		filename := path.Join(dir, "rpc_"+strings.ToLower(name)+"_"+data.EntityField+".proto")
 
-		out, err := newGeneratedFile(plugin, seenPaths, filename, entity, file.GoImportPath)
+		out, err := newGeneratedFile(plugin, seenPaths, filename, entityName, file.GoImportPath)
 		if err != nil {
 			return err
 		}
@@ -92,7 +91,7 @@ func (g *protoServiceGenerator) generateForMessage(
 	}
 
 	servicePath := path.Join(dir, "service_"+data.EntityField+".proto")
-	out, err := newGeneratedFile(plugin, seenPaths, servicePath, entity, file.GoImportPath)
+	out, err := newGeneratedFile(plugin, seenPaths, servicePath, entityName, file.GoImportPath)
 	if err != nil {
 		return err
 	}
@@ -147,31 +146,11 @@ type serviceModel struct {
 // duplicates are dropped, so a message that requests no real operation is not
 // generatable.
 func entityOperations(message *protogen.Message) ([]pluginV1.Operation, bool) {
-	opts, ok := message.Desc.Options().(*descriptorpb.MessageOptions)
-	if !ok || opts == nil {
-		return nil, false
-	}
-	if !proto.HasExtension(opts, pluginV1.E_Message) {
+	opts := entity.MessageAnnotation(message.Desc)
+	if opts == nil || opts.GetRole() != pluginV1.Role_ROLE_ENTITY {
 		return nil, false
 	}
 
-	msgOpts, ok := proto.GetExtension(opts, pluginV1.E_Message).(*pluginV1.MessageOptions)
-	if !ok || msgOpts == nil {
-		return nil, false
-	}
-	if msgOpts.GetRole() != pluginV1.Role_ROLE_ENTITY {
-		return nil, false
-	}
-
-	seen := make(map[pluginV1.Operation]bool)
-	var operations []pluginV1.Operation
-	for _, op := range msgOpts.GetOperations() {
-		if op == pluginV1.Operation_OPERATION_UNSPECIFIED || seen[op] {
-			continue
-		}
-		seen[op] = true
-		operations = append(operations, op)
-	}
-
+	operations := entity.DistinctOperations(opts)
 	return operations, len(operations) > 0
 }

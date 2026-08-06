@@ -6,13 +6,11 @@ import (
 	"buf.build/go/bufplugin/check"
 	"buf.build/go/bufplugin/check/checkutil"
 	pluginV1 "github.com/labset/protobuf-toolchain/api/labset/plugin/v1"
+	"github.com/labset/protobuf-toolchain/internal/entity"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-const (
-	entityEmbeddedFieldRuleID = "LABSET_ENTITY_EMBEDDED_FIELD"
-	entityMessageFullName     = "labset.plugin.v1.Entity"
-)
+const entityEmbeddedFieldRuleID = "LABSET_ENTITY_EMBEDDED_FIELD"
 
 var entityEmbeddedFieldRuleSpec = &check.RuleSpec{
 	ID:      entityEmbeddedFieldRuleID,
@@ -31,7 +29,7 @@ func checkEntityEmbeddedField(
 	_ check.Request,
 	messageDescriptor protoreflect.MessageDescriptor,
 ) error {
-	annotation := messageAnnotation(messageDescriptor)
+	annotation := entity.MessageAnnotation(messageDescriptor)
 	if annotation == nil || annotation.GetRole() != pluginV1.Role_ROLE_ENTITY {
 		return nil
 	}
@@ -42,7 +40,7 @@ func checkEntityEmbeddedField(
 			check.WithMessagef(
 				"Entity %q must embed %s at field 1.",
 				messageDescriptor.Name(),
-				entityMessageFullName,
+				entity.BaseFullName,
 			),
 			check.WithDescriptor(messageDescriptor),
 		)
@@ -51,12 +49,12 @@ func checkEntityEmbeddedField(
 
 	embedded := field.Message()
 	if embedded == nil || field.IsList() || field.IsMap() ||
-		string(embedded.FullName()) != entityMessageFullName {
+		string(embedded.FullName()) != entity.BaseFullName {
 		responseWriter.AddAnnotation(
 			check.WithMessagef(
 				"Entity %q must embed %s at field 1, but field %q is %s.",
 				messageDescriptor.Name(),
-				entityMessageFullName,
+				entity.BaseFullName,
 				field.Name(),
 				describeFieldType(field),
 			),

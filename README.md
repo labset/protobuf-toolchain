@@ -1,4 +1,4 @@
-## protobuf-toolchain
+# protobuf-toolchain
 
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=labset_protobuf-toolchain&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=labset_protobuf-toolchain)
 
@@ -10,7 +10,7 @@ plugins:
 - **`labset-lint-plugin`** — a [`bufplugin`](https://buf.build/docs/cli/buf-plugins/)
   check plugin that contributes custom lint rules to `buf lint`.
 
-### usage
+## usage
 
 - install with `go install`
 
@@ -34,7 +34,7 @@ or pin them in a project's `mise.toml`:
 "go:github.com/labset/protobuf-toolchain/cmd/labset-lint-plugin" = "latest"
 ```
 
-### wiring the plugins into buf
+## wiring the plugins into buf
 
 - codegen with `protoc-gen-labset`, selecting a generator with the `mode` option:
 
@@ -59,11 +59,10 @@ lint:
     - STANDARD
 ```
 
-### generators
+## generators
 
-#### `mode=proto-service`
-
-Annotate an entity with `(labset.plugin.v1.message)` — a `role` and the CRUD
+`protoc-gen-labset` hosts several generators behind the `mode` option. Most are
+driven by the `(labset.plugin.v1.message)` annotation — a `role` plus the CRUD
 `operations` to expose:
 
 ```protobuf
@@ -85,41 +84,13 @@ message Project {
 }
 ```
 
-```yaml
-# buf.gen.yaml
-plugins:
-  - local: protoc-gen-labset
-    out: gen
-    opt: mode=proto-service
-```
+| `mode` | generates | docs |
+| --- | --- | --- |
+| `echo` | logs the files it would generate — a wiring smoke test | — |
+| `proto-service` | a CRUD service split across proto files, per annotated entity | [read the docs](_docs/proto-service.md) |
+| `go-sqlc-atlas` | a Postgres schema, sqlc queries and the sqlc/Atlas config, per annotated entity | [read the docs](_docs/go-sqlc-atlas.md) |
 
-Emits one payload file per operation plus the service:
-
-```
-gen/projectmanagement/v1/rpc_create_project.proto   # CreateProjectRequest/Response
-gen/projectmanagement/v1/rpc_read_project.proto     # GetProjectRequest (id validated as uuid)
-gen/projectmanagement/v1/rpc_update_project.proto   # UpdateProjectRequest + update_mask
-gen/projectmanagement/v1/rpc_delete_project.proto
-gen/projectmanagement/v1/rpc_list_project.proto     # ListProjectCollectionRequest + read_mask
-gen/projectmanagement/v1/service_project.proto      # ProjectService
-```
-
-The payloads use `google.protobuf.FieldMask` and validate `id` with
-[`protovalidate`](https://buf.build/bufbuild/protovalidate), so consumers that
-compile the output need the dependency:
-
-```yaml
-# buf.yaml (consumer of the generated protos)
-version: v2
-deps:
-  - buf.build/bufbuild/protovalidate
-```
-
-```bash
-buf dep update
-```
-
-### lint rules
+## lint rules
 
 `labset-lint-plugin` contributes rules that keep entity annotations well-formed.
 They are on by default once the plugin is wired into `buf.yaml`:
@@ -144,7 +115,7 @@ message Project {
 }
 ```
 
-## Contributing
+## contributing
 
 Local setup, project layout, how to add a generator or lint rule, and the release
 process live in [CONTRIBUTING.md](CONTRIBUTING.md).
