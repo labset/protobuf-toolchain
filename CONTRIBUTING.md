@@ -124,6 +124,14 @@ mise run build
 mise run clean
 ```
 
+## testing against a project
+
+The golden tests (`mise run test`) are the inner loop, but before a release it's
+worth running a working-tree build of the plugins against a real project. The
+[local testing guide](_docs/guide-local-testing.md) walks through installing the
+binaries from your checkout, wiring them into a target project's `buf` config,
+and iterating.
+
 ## releasing
 
 Releases are cut by [GoReleaser](https://goreleaser.com/) from the `release` workflow, which
