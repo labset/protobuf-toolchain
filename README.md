@@ -84,14 +84,11 @@ message Project {
 }
 ```
 
-| `mode` | generates |
-| --- | --- |
-| `echo` | logs the files it would generate — a wiring smoke test |
-| [`proto-service`](_docs/proto-service.md) | a CRUD service split across proto files, per annotated entity |
-| [`go-sqlc-atlas`](_docs/go-sqlc-atlas.md) | a Postgres schema, sqlc queries and the sqlc/Atlas config, per annotated entity |
-
-Each mode's output layout, conventions and parameters live under
-[`_docs/`](_docs).
+| `mode` | generates | docs |
+| --- | --- | --- |
+| `echo` | logs the files it would generate — a wiring smoke test | — |
+| `proto-service` | a CRUD service split across proto files, per annotated entity | [`_docs/proto-service.md`](_docs/proto-service.md) |
+| `go-sqlc-atlas` | a Postgres schema, sqlc queries and the sqlc/Atlas config, per annotated entity | [`_docs/go-sqlc-atlas.md`](_docs/go-sqlc-atlas.md) |
 
 ### lint rules
 
