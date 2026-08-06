@@ -31,7 +31,6 @@ type goSqlcAtlasGenerator struct {
 
 func (g *goSqlcAtlasGenerator) Generate(plugin *protogen.Plugin) error {
 	tmpl, err := template.New("").Funcs(template.FuncMap{
-		"add": func(a, b int) int { return a + b },
 		"has": func(ops []string, op string) bool {
 			for _, o := range ops {
 				if o == op {

@@ -3,12 +3,12 @@
 {{ if has .Operations "CREATE" }}
 -- name: Create{{ .Entity }} :one
 INSERT INTO {{ .Schema }}.{{ .Table }} (id{{ range .Columns }}, {{ .Name }}{{ end }})
-VALUES ($1{{ range $i, $c := .Columns }}, ${{ add $i 2 }}{{ end }})
+VALUES (sqlc.arg('id'){{ range .Columns }}, sqlc.arg('{{ .Name }}'){{ end }})
 RETURNING *;
 {{ end }}{{ if has .Operations "READ" }}
 -- name: Get{{ .Entity }} :one
 SELECT * FROM {{ .Schema }}.{{ .Table }}
-WHERE id = $1 AND deleted_at IS NULL;
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 {{ end }}{{ if has .Operations "UPDATE" }}
 -- name: Update{{ .Entity }} :one
 UPDATE {{ .Schema }}.{{ .Table }}
@@ -19,7 +19,7 @@ RETURNING *;
 -- name: Delete{{ .Entity }} :exec
 UPDATE {{ .Schema }}.{{ .Table }}
 SET deleted_at = now()
-WHERE id = $1 AND deleted_at IS NULL;
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 {{ end }}{{ if has .Operations "LIST" }}
 -- name: List{{ .Entity }} :many
 SELECT * FROM {{ .Schema }}.{{ .Table }}

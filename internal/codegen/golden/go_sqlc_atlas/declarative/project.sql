@@ -3,12 +3,12 @@
 
 -- name: CreateProject :one
 INSERT INTO projectmanagement_v1.project (id, name, description)
-VALUES ($1, $2, $3)
+VALUES (sqlc.arg('id'), sqlc.arg('name'), sqlc.arg('description'))
 RETURNING *;
 
 -- name: GetProject :one
 SELECT * FROM projectmanagement_v1.project
-WHERE id = $1 AND deleted_at IS NULL;
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 
 -- name: UpdateProject :one
 UPDATE projectmanagement_v1.project
@@ -19,7 +19,7 @@ RETURNING *;
 -- name: DeleteProject :exec
 UPDATE projectmanagement_v1.project
 SET deleted_at = now()
-WHERE id = $1 AND deleted_at IS NULL;
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 
 -- name: ListProject :many
 SELECT * FROM projectmanagement_v1.project

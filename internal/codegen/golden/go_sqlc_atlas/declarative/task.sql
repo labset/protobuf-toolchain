@@ -3,12 +3,12 @@
 
 -- name: CreateTask :one
 INSERT INTO projectmanagement_v1.task (id, project_id, title, priority)
-VALUES ($1, $2, $3, $4)
+VALUES (sqlc.arg('id'), sqlc.arg('project_id'), sqlc.arg('title'), sqlc.arg('priority'))
 RETURNING *;
 
 -- name: GetTask :one
 SELECT * FROM projectmanagement_v1.task
-WHERE id = $1 AND deleted_at IS NULL;
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 
 -- name: ListTask :many
 SELECT * FROM projectmanagement_v1.task
