@@ -65,10 +65,8 @@ func hasOperation(ops []string, op string) bool {
 	return false
 }
 
-// collectDirs groups every ROLE_ENTITY message by output directory: schema.sql,
-// the query files and the config files are per-directory artifacts, so every
-// entity in a directory contributes to one shared set. order preserves
-// first-seen directory order for deterministic output.
+// collectDirs groups every ROLE_ENTITY message by output directory; order keeps
+// the directories in first-seen order for deterministic output.
 func (g *goSqlcAtlasGenerator) collectDirs(
 	plugin *protogen.Plugin,
 ) (map[string]*dirModel, []string, error) {
@@ -103,12 +101,9 @@ func (g *goSqlcAtlasGenerator) collectDirs(
 	return dirs, order, nil
 }
 
-// dirModelFor returns the model for a directory, creating it on first sight
-// (reporting created=true). It errors when a second proto package lands in the
-// same directory: the per-directory config (one schema, one sqlc.yaml/atlas.hcl)
-// cannot represent two packages, so qualifying one package's tables with the
-// other's schema would be silently wrong. buf's PACKAGE_DIRECTORY_MATCH normally
-// prevents this.
+// dirModelFor returns the directory's model, creating it (created=true) on first
+// sight. Two proto packages in one directory is an error: the per-directory
+// config cannot represent both.
 func (g *goSqlcAtlasGenerator) dirModelFor(
 	dirs map[string]*dirModel,
 	dir string,
@@ -233,10 +228,6 @@ type sqlColumn struct {
 	Nullable bool
 }
 
-// buildEntity derives the table and query model for a ROLE_ENTITY message. The
-// embedded labset.plugin.v1.Entity field contributes the fixed base columns
-// (id, created_at, updated_at, deleted_at) owned by the templates, so it — and
-// any field colliding with those reserved names — is excluded here.
 func buildEntity(message *protogen.Message, opts *pluginV1.MessageOptions) sqlEntity {
 	name := string(message.Desc.Name())
 	ent := sqlEntity{
@@ -266,18 +257,14 @@ var reservedColumns = map[string]bool{
 	"deleted_at": true,
 }
 
-// columnFor maps a message field to a Postgres column, reporting false for
-// fields that do not become columns: the embedded Entity base, reserved names,
-// repeated fields, and message types other than Timestamp (foreign keys are a
-// deferred story). Unmapped kinds are skipped rather than failing the run.
+// columnFor maps a message field to a Postgres column, or reports false when the
+// field does not become one.
 func columnFor(field *protogen.Field) (sqlColumn, bool) {
 	if field.Desc.IsList() || field.Desc.IsMap() {
 		return sqlColumn{}, false
 	}
 
-	// The embedded Entity base contributes the fixed columns the template owns,
-	// so it is never a column of its own — skip it explicitly rather than relying
-	// on the non-Timestamp message fall-through below.
+	// The Entity base's columns are emitted by the templates, not derived here.
 	if field.Message != nil && string(field.Message.Desc.FullName()) == entity.BaseFullName {
 		return sqlColumn{}, false
 	}
@@ -306,6 +293,7 @@ func columnFor(field *protogen.Field) (sqlColumn, bool) {
 	case protoreflect.DoubleKind:
 		sqlType = "double precision"
 	case protoreflect.MessageKind:
+		// A non-Timestamp message is a foreign key, deferred for now.
 		if field.Message == nil ||
 			string(field.Message.Desc.FullName()) != "google.protobuf.Timestamp" {
 			return sqlColumn{}, false
