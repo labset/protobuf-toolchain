@@ -8,8 +8,6 @@ import (
 func GeneratorForMode(raw string) (Generator, error) {
 	p := parseParams(raw)
 	switch p.mode {
-	case "echo":
-		return &echoGenerator{}, nil
 	case "proto-service":
 		return &protoServiceGenerator{}, nil
 	case "go-sqlc-atlas":
