@@ -52,6 +52,9 @@ mise exec -- go test ./internal/codegen/ -update
 
 - **tests** — cover the golden output plus the generator's skip/error states; see
   `internal/codegen/generator_proto_service_test.go`.
+- **docs** — add a `_docs/<mode>.md` with the mode's output layout, conventions
+  and parameters, and link it from the generators table in the README. Keep the
+  README a lean index; detail lives in `_docs`.
 
 ## adding a lint rule
 

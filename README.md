@@ -61,10 +61,9 @@ lint:
 
 ### generators
 
-#### `mode=proto-service`
-
-Annotate an entity with `(labset.plugin.v1.message)` — a `role` and the CRUD
-`operations` to expose:
+`protoc-gen-labset` hosts several generators behind the `mode` option. Both
+`proto-service` and `go-sqlc-atlas` read the same `(labset.plugin.v1.message)`
+annotation — a `role` plus the CRUD `operations` to expose:
 
 ```protobuf
 // projectmanagement/v1/project.proto
@@ -85,91 +84,14 @@ message Project {
 }
 ```
 
-```yaml
-# buf.gen.yaml
-plugins:
-  - local: protoc-gen-labset
-    out: gen
-    opt: mode=proto-service
-```
+| `mode` | generates |
+| --- | --- |
+| `echo` | logs the files it would generate — a wiring smoke test |
+| [`proto-service`](_docs/proto-service.md) | a CRUD service split across proto files, per annotated entity |
+| [`go-sqlc-atlas`](_docs/go-sqlc-atlas.md) | a Postgres schema, sqlc queries and the sqlc/Atlas config, per annotated entity |
 
-Emits one payload file per operation plus the service:
-
-```
-gen/projectmanagement/v1/rpc_create_project.proto   # CreateProjectRequest/Response
-gen/projectmanagement/v1/rpc_read_project.proto     # GetProjectRequest (id validated as uuid)
-gen/projectmanagement/v1/rpc_update_project.proto   # UpdateProjectRequest + update_mask
-gen/projectmanagement/v1/rpc_delete_project.proto
-gen/projectmanagement/v1/rpc_list_project.proto     # ListProjectCollectionRequest + read_mask
-gen/projectmanagement/v1/service_project.proto      # ProjectService
-```
-
-The payloads use `google.protobuf.FieldMask` and validate `id` with
-[`protovalidate`](https://buf.build/bufbuild/protovalidate), so consumers that
-compile the output need the dependency:
-
-```yaml
-# buf.yaml (consumer of the generated protos)
-version: v2
-deps:
-  - buf.build/bufbuild/protovalidate
-```
-
-```bash
-buf dep update
-```
-
-#### `mode=go-sqlc-atlas`
-
-Turns every `ROLE_ENTITY` message into a Postgres backend layer: a schema, sqlc
-CRUD queries, and the sqlc/Atlas config plus a `generate.go` that drives them.
-Entities sharing an output directory are aggregated into one schema and query
-file plus one config set.
-
-```yaml
-# buf.gen.yaml
-plugins:
-  - local: protoc-gen-labset
-    out: gen
-    opt: mode=go-sqlc-atlas
-```
-
-For the `Project` entity above it emits, per package directory:
-
-```
-gen/projectmanagement/v1/sql/schema.sql          # CREATE TABLE project (id uuid PK, ..., soft delete)
-gen/projectmanagement/v1/sql/queries/project.sql # sqlc CRUD queries, one file per entity
-gen/projectmanagement/v1/sqlc.yaml               # engine postgresql, pgx/v5, gofrs/uuid overrides
-gen/projectmanagement/v1/atlas.hcl               # local env (dev docker db + DATABASE_URL)
-gen/projectmanagement/v1/generate.go             # //go:generate atlas + sqlc
-```
-
-The schema aggregates every entity in the directory; each entity gets its own
-`sql/queries/<table>.sql`.
-
-Conventions: table and column names are singular `snake_case`; the embedded
-`Entity` contributes `id uuid PRIMARY KEY` (application-generated) plus
-`created_at` / `updated_at` (default `now()`) and a nullable `deleted_at`;
-`DELETE` is a soft delete and reads carry `WHERE deleted_at IS NULL`. `UPDATE`
-is a partial update (`COALESCE(sqlc.narg('col'), col)`), so a `nil` argument
-leaves that column unchanged. Scalar
-fields map by type (`string`→`text`, `int64`→`bigint`, `bool`→`boolean`,
-`Timestamp`→`timestamptz`; proto3 `optional` → nullable); message fields other
-than `Timestamp` (foreign keys) are skipped for now.
-
-Tables live under a dedicated Postgres schema (`CREATE SCHEMA IF NOT EXISTS ...`
-plus schema-qualified DDL and queries). It defaults to the proto package with
-dots replaced by underscores (`projectmanagement.v1` → `projectmanagement_v1`);
-override it with `schema=<name>`.
-
-By default Atlas manages the schema declaratively (`atlas schema apply` against
-`schema.sql`). Pass `migration=<format>` to switch to a versioned migrations
-directory instead — the value is the Atlas dir format (`goose`, `flyway`,
-`golang-migrate`, `dbmate`, `liquibase`, `atlas`). Both parameters compose:
-
-```yaml
-    opt: mode=go-sqlc-atlas,schema=app,migration=goose
-```
+Each mode's output layout, conventions and parameters live under
+[`_docs/`](_docs).
 
 ### lint rules
 
