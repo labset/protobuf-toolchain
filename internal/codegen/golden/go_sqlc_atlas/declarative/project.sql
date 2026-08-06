@@ -12,8 +12,8 @@ WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: UpdateProject :one
 UPDATE projectmanagement_v1.project
-SET name = $2, description = $3, updated_at = now()
-WHERE id = $1 AND deleted_at IS NULL
+SET name = COALESCE(sqlc.narg('name'), name), description = COALESCE(sqlc.narg('description'), description), updated_at = now()
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL
 RETURNING *;
 
 -- name: DeleteProject :exec

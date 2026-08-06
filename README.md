@@ -150,7 +150,9 @@ The schema aggregates every entity in the directory; each entity gets its own
 Conventions: table and column names are singular `snake_case`; the embedded
 `Entity` contributes `id uuid PRIMARY KEY` (application-generated) plus
 `created_at` / `updated_at` (default `now()`) and a nullable `deleted_at`;
-`DELETE` is a soft delete and reads carry `WHERE deleted_at IS NULL`. Scalar
+`DELETE` is a soft delete and reads carry `WHERE deleted_at IS NULL`. `UPDATE`
+is a partial update (`COALESCE(sqlc.narg('col'), col)`), so a `nil` argument
+leaves that column unchanged. Scalar
 fields map by type (`string`→`text`, `int64`→`bigint`, `bool`→`boolean`,
 `Timestamp`→`timestamptz`; proto3 `optional` → nullable); message fields other
 than `Timestamp` (foreign keys) are skipped for now.
