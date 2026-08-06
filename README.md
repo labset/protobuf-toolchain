@@ -44,7 +44,7 @@ version: v2
 plugins:
   - local: protoc-gen-labset
     out: gen
-    opt: mode=echo
+    opt: mode=proto-service
 ```
 
 - linting with `labset-lint-plugin`:
@@ -86,7 +86,6 @@ message Project {
 
 | `mode` | generates | docs |
 | --- | --- | --- |
-| `echo` | logs the files it would generate — a wiring smoke test | — |
 | `proto-service` | a CRUD service split across proto files, per annotated entity | [read the docs](_docs/proto-service.md) |
 | `go-sqlc-atlas` | a Postgres schema, sqlc queries and the sqlc/Atlas config, per annotated entity | [read the docs](_docs/go-sqlc-atlas.md) |
 
