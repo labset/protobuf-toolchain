@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"path"
+	"strings"
 	"testing"
 
 	pluginV1 "github.com/labset/protobuf-toolchain/api/labset/plugin/v1"
@@ -196,6 +197,29 @@ func TestGoSqlcAtlasGeneratorEntityWithoutOperations(t *testing.T) {
 func TestGoSqlcAtlasUnknownMigrationFormat(t *testing.T) {
 	_, err := GeneratorForMode("mode=go-sqlc-atlas,migration=bogus")
 	require.ErrorContains(t, err, "unknown migration format")
+}
+
+// TestGoSqlcAtlasGeneratorQueriesAvoidWildcards verifies generated queries
+// satisfy the SonarCloud checks: no SELECT */RETURNING * wildcard and an
+// explicit ASC on the LIST ordering.
+func TestGoSqlcAtlasGeneratorQueriesAvoidWildcards(t *testing.T) {
+	plugin, err := generateSqlc(t, "", "",
+		[]string{"projectmanagement/v1/project_management.proto"},
+		sqlcProjectManagementFileDescriptor(),
+	)
+	require.NoError(t, err)
+
+	for _, f := range plugin.Response().GetFile() {
+		if path.Ext(f.GetName()) != ".sql" {
+			continue
+		}
+		query := f.GetContent()
+		assert.NotContains(t, query, "SELECT *", "%s uses SELECT *", f.GetName())
+		assert.NotContains(t, query, "RETURNING *", "%s uses RETURNING *", f.GetName())
+		if strings.Contains(query, "ORDER BY") {
+			assert.Contains(t, query, "ORDER BY created_at ASC", "%s omits ASC", f.GetName())
+		}
+	}
 }
 
 // TestGoSqlcAtlasGeneratorRealOneofNullable verifies a member of a real (non

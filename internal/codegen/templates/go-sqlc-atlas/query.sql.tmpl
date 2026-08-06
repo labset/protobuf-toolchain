@@ -4,17 +4,17 @@
 -- name: Create{{ .Entity }} :one
 INSERT INTO {{ .Schema }}.{{ .Table }} (id{{ range .Columns }}, {{ .Name }}{{ end }})
 VALUES (sqlc.arg('id'){{ range .Columns }}, sqlc.arg('{{ .Name }}'){{ end }})
-RETURNING *;
+RETURNING {{ template "columns" . }};
 {{ end }}{{ if has .Operations "READ" }}
 -- name: Get{{ .Entity }} :one
-SELECT * FROM {{ .Schema }}.{{ .Table }}
+SELECT {{ template "columns" . }} FROM {{ .Schema }}.{{ .Table }}
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 {{ end }}{{ if has .Operations "UPDATE" }}
 -- name: Update{{ .Entity }} :one
 UPDATE {{ .Schema }}.{{ .Table }}
 SET {{ range .Columns }}{{ .Name }} = COALESCE(sqlc.narg('{{ .Name }}'), {{ .Name }}), {{ end }}updated_at = now()
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL
-RETURNING *;
+RETURNING {{ template "columns" . }};
 {{ end }}{{ if has .Operations "DELETE" }}
 -- name: Delete{{ .Entity }} :exec
 UPDATE {{ .Schema }}.{{ .Table }}
@@ -22,7 +22,10 @@ SET deleted_at = now()
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 {{ end }}{{ if has .Operations "LIST" }}
 -- name: List{{ .Entity }} :many
-SELECT * FROM {{ .Schema }}.{{ .Table }}
+SELECT {{ template "columns" . }} FROM {{ .Schema }}.{{ .Table }}
 WHERE deleted_at IS NULL
-ORDER BY created_at;
+ORDER BY created_at ASC;
 {{ end }}
+{{- define "columns" -}}
+id{{ range .Columns }}, {{ .Name }}{{ end }}, created_at, updated_at, deleted_at
+{{- end -}}

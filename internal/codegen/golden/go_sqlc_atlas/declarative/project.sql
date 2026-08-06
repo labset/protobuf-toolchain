@@ -4,17 +4,17 @@
 -- name: CreateProject :one
 INSERT INTO projectmanagement_v1.project (id, name, description)
 VALUES (sqlc.arg('id'), sqlc.arg('name'), sqlc.arg('description'))
-RETURNING *;
+RETURNING id, name, description, created_at, updated_at, deleted_at;
 
 -- name: GetProject :one
-SELECT * FROM projectmanagement_v1.project
+SELECT id, name, description, created_at, updated_at, deleted_at FROM projectmanagement_v1.project
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 
 -- name: UpdateProject :one
 UPDATE projectmanagement_v1.project
 SET name = COALESCE(sqlc.narg('name'), name), description = COALESCE(sqlc.narg('description'), description), updated_at = now()
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL
-RETURNING *;
+RETURNING id, name, description, created_at, updated_at, deleted_at;
 
 -- name: DeleteProject :exec
 UPDATE projectmanagement_v1.project
@@ -22,7 +22,6 @@ SET deleted_at = now()
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 
 -- name: ListProject :many
-SELECT * FROM projectmanagement_v1.project
+SELECT id, name, description, created_at, updated_at, deleted_at FROM projectmanagement_v1.project
 WHERE deleted_at IS NULL
-ORDER BY created_at;
-
+ORDER BY created_at ASC;
