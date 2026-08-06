@@ -6,6 +6,7 @@ import (
 	"buf.build/go/bufplugin/check"
 	"buf.build/go/bufplugin/check/checkutil"
 	pluginV1 "github.com/labset/protobuf-toolchain/api/labset/plugin/v1"
+	"github.com/labset/protobuf-toolchain/internal/entity"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
@@ -31,7 +32,7 @@ func checkEntityAnnotationRootOnly(
 	_ check.Request,
 	messageDescriptor protoreflect.MessageDescriptor,
 ) error {
-	annotation := messageAnnotation(messageDescriptor)
+	annotation := entity.MessageAnnotation(messageDescriptor)
 	if annotation == nil {
 		return nil
 	}

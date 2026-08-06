@@ -8,6 +8,7 @@ import (
 	"text/template"
 
 	pluginV1 "github.com/labset/protobuf-toolchain/api/labset/plugin/v1"
+	"github.com/labset/protobuf-toolchain/internal/entity"
 	"github.com/labset/protobuf-toolchain/internal/helpers"
 	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -60,7 +61,7 @@ func (g *goSqlcAtlasGenerator) Generate(plugin *protogen.Plugin) error {
 		// Only top-level messages model first-class tables; a nested entity
 		// annotation is a lint concern, skipped here (see proto-service).
 		for _, message := range file.Messages {
-			opts := entityMessageOptions(message)
+			opts := entity.MessageAnnotation(message.Desc)
 			if opts == nil || opts.GetRole() != pluginV1.Role_ROLE_ENTITY {
 				continue
 			}
@@ -131,19 +132,19 @@ func renderDir(
 	}
 
 	seen := make(map[string]string)
-	for _, entity := range dm.Entities {
-		filename := path.Join(dir, "sql", "queries", entity.Table+".sql")
+	for _, ent := range dm.Entities {
+		filename := path.Join(dir, "sql", "queries", ent.Table+".sql")
 		if prev, ok := seen[filename]; ok {
 			return fmt.Errorf(
 				"go-sqlc-atlas: entities %q and %q both generate %q",
-				prev, entity.Entity, filename,
+				prev, ent.Entity, filename,
 			)
 		}
-		seen[filename] = entity.Entity
+		seen[filename] = ent.Entity
 
 		out := plugin.NewGeneratedFile(filename, dm.goImportPath)
 		if err := tmpl.ExecuteTemplate(out, "query.sql.tmpl",
-			queryFileModel{Source: dm.Source, Schema: dm.Schema, sqlEntity: entity}); err != nil {
+			queryFileModel{Source: dm.Source, Schema: dm.Schema, sqlEntity: ent}); err != nil {
 			return err
 		}
 	}
@@ -203,10 +204,10 @@ type sqlColumn struct {
 // (id, created_at, updated_at, deleted_at) owned by the templates, so it — and
 // any field colliding with those reserved names — is excluded here.
 func buildEntity(message *protogen.Message, opts *pluginV1.MessageOptions) sqlEntity {
-	entity := string(message.Desc.Name())
+	name := string(message.Desc.Name())
 	ent := sqlEntity{
-		Entity: entity,
-		Table:  helpers.ToSnake(entity),
+		Entity: name,
+		Table:  helpers.ToSnake(name),
 	}
 
 	for _, field := range message.Fields {
@@ -215,8 +216,8 @@ func buildEntity(message *protogen.Message, opts *pluginV1.MessageOptions) sqlEn
 		}
 	}
 
-	for _, op := range distinctOperations(opts) {
-		ent.Operations = append(ent.Operations, operationName(op))
+	for _, op := range entity.DistinctOperations(opts) {
+		ent.Operations = append(ent.Operations, entity.OperationName(op))
 	}
 
 	return ent
@@ -243,7 +244,7 @@ func columnFor(field *protogen.Field) (sqlColumn, bool) {
 	// The embedded Entity base contributes the fixed columns the template owns,
 	// so it is never a column of its own — skip it explicitly rather than relying
 	// on the non-Timestamp message fall-through below.
-	if field.Message != nil && string(field.Message.Desc.FullName()) == entityBaseFullName {
+	if field.Message != nil && string(field.Message.Desc.FullName()) == entity.BaseFullName {
 		return sqlColumn{}, false
 	}
 

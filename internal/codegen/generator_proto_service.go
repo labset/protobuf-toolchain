@@ -8,6 +8,7 @@ import (
 	"text/template"
 
 	pluginV1 "github.com/labset/protobuf-toolchain/api/labset/plugin/v1"
+	"github.com/labset/protobuf-toolchain/internal/entity"
 	"github.com/labset/protobuf-toolchain/internal/helpers"
 	"google.golang.org/protobuf/compiler/protogen"
 )
@@ -59,21 +60,21 @@ func (g *protoServiceGenerator) generateForMessage(
 		return nil
 	}
 
-	entity := string(message.Desc.Name())
+	entityName := string(message.Desc.Name())
 	data := entityData{
 		Package:     string(file.Desc.Package()),
 		Source:      file.Desc.Path(),
-		Entity:      entity,
-		EntityField: helpers.ToSnake(entity),
+		Entity:      entityName,
+		EntityField: helpers.ToSnake(entityName),
 	}
 	dir := path.Dir(data.Source)
 
 	service := serviceModel{entityData: data}
 	for _, op := range operations {
-		name := operationName(op)
+		name := entity.OperationName(op)
 		filename := path.Join(dir, "rpc_"+strings.ToLower(name)+"_"+data.EntityField+".proto")
 
-		out, err := newGeneratedFile(plugin, seenPaths, filename, entity, file.GoImportPath)
+		out, err := newGeneratedFile(plugin, seenPaths, filename, entityName, file.GoImportPath)
 		if err != nil {
 			return err
 		}
@@ -90,7 +91,7 @@ func (g *protoServiceGenerator) generateForMessage(
 	}
 
 	servicePath := path.Join(dir, "service_"+data.EntityField+".proto")
-	out, err := newGeneratedFile(plugin, seenPaths, servicePath, entity, file.GoImportPath)
+	out, err := newGeneratedFile(plugin, seenPaths, servicePath, entityName, file.GoImportPath)
 	if err != nil {
 		return err
 	}
@@ -145,11 +146,11 @@ type serviceModel struct {
 // duplicates are dropped, so a message that requests no real operation is not
 // generatable.
 func entityOperations(message *protogen.Message) ([]pluginV1.Operation, bool) {
-	opts := entityMessageOptions(message)
+	opts := entity.MessageAnnotation(message.Desc)
 	if opts == nil || opts.GetRole() != pluginV1.Role_ROLE_ENTITY {
 		return nil, false
 	}
 
-	operations := distinctOperations(opts)
+	operations := entity.DistinctOperations(opts)
 	return operations, len(operations) > 0
 }
